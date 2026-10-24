@@ -1,0 +1,1397 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>路路通 拍檔配對戰</title>
+<style>
+  :root{
+    --green:#4FCE7E; --green-d:#2f9d57; --purple:#715874; --pink:#F95F88;
+    --tint:#F1ECF5; --orange:#F28C28; --bg:#FFFFFF; --text:#3A2E3D;
+    --road:#4b5563; --grass:#dff1d3; --yellow:#fbbf24; --blue:#2563eb; --red:#e11d48; --line:#d9cfe0;
+  }
+  *{box-sizing:border-box}
+  [hidden]{display:none!important}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font-family:"微軟正黑體","Microsoft JhengHei","PingFang HK","Noto Sans TC",sans-serif;font-size:18px}
+  button{font:inherit;cursor:pointer;border:0;border-radius:14px;padding:12px 18px;font-weight:800;color:#fff;background:var(--purple)}
+  button:active{transform:scale(.97)}
+  button:disabled{opacity:.4;cursor:not-allowed}
+  button.go{background:var(--green)} button.pink{background:var(--pink)} button.orange{background:var(--orange)}
+  button.ghost{background:#fff;color:var(--purple);border:3px solid var(--line)}
+  input[type=text],textarea{font:inherit;width:100%;padding:12px 14px;border-radius:14px;border:3px solid var(--line);background:#fff;color:var(--text)}
+  input[type=text]:focus,textarea:focus{outline:none;border-color:var(--green)}
+
+  /* 頂部馬路橫幅 */
+  .topbar{background:var(--road);color:#fff;padding:14px 24px 22px;position:relative;overflow:hidden}
+  .topbar h1{margin:0;font-size:32px;letter-spacing:2px}
+  .topbar h1 small{font-size:16px;font-weight:600;opacity:.85;margin-left:10px;letter-spacing:0}
+  .topbar::after{content:"";position:absolute;left:0;right:0;bottom:7px;height:4px;
+    background:repeating-linear-gradient(90deg,var(--yellow) 0 28px,transparent 28px 52px)}
+  .topbar .drive{position:absolute;bottom:10px;left:-60px;font-size:28px;animation:drive 9s linear infinite}
+  @keyframes drive{to{left:105%}}
+  .wrap{max-width:1180px;margin:0 auto;padding:18px 24px 40px}
+  h2{margin:0 0 10px;font-size:26px;color:var(--purple)}
+  h3{margin:0 0 8px;font-size:20px;color:var(--purple)}
+  .panel{background:var(--tint);border-radius:20px;padding:20px;margin-bottom:18px}
+  .muted{color:#7d6e80;font-size:16px}
+  .foot{text-align:center;padding:10px;font-size:14px;color:#9a8c9d}
+  .foot a{color:inherit}
+
+  /* 歡迎 */
+  .form-row{margin:14px 0}
+  .form-row label{display:block;font-weight:800;color:var(--purple);margin-bottom:6px}
+  .avatars,.chips{display:flex;flex-wrap:wrap;gap:10px}
+  .av{background:#fff;border:4px solid transparent;border-radius:16px;padding:6px;width:72px;height:72px;display:grid;place-items:center}
+  .av.on{border-color:var(--green);background:#eafaf0}
+  .chip-btn{background:#fff;color:var(--text);border:3px solid var(--line);padding:8px 14px;font-size:20px}
+  .chip-btn.on{border-color:var(--green);background:#eafaf0}
+  .fav-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:8px 0}
+  .fav-row b{width:84px;color:var(--purple)}
+
+  /* 二揀一 */
+  .dots{display:flex;gap:6px;margin-bottom:14px}
+  .dots i{flex:1;height:8px;border-radius:4px;background:var(--line)}
+  .dots i.on{background:var(--green)}
+  .q{font-size:30px;font-weight:800;margin:10px 0 18px}
+  .choices{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .choice{background:#fff;color:var(--text);border:4px solid var(--line);border-radius:20px;padding:30px 18px;font-size:24px;line-height:1.4;min-height:130px}
+  .choice:hover{border-color:var(--green)}
+  @media (max-width:640px){.choices{grid-template-columns:1fr}.q{font-size:24px}}
+
+  /* 遊戲 */
+  .lv-tabs{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+  .lv-tab{padding:8px 14px;border-radius:999px;background:var(--tint);color:var(--purple);font-weight:800;font-size:16px}
+  .lv-tab.on{background:var(--green);color:#fff}
+  .lv-tab.done{background:#bfeccf;color:var(--green-d)}
+  .game{display:grid;grid-template-columns:minmax(300px,390px) 1fr;gap:18px;align-items:start}
+  @media (max-width:860px){.game{grid-template-columns:1fr}}
+  .mapbox{background:var(--tint);border-radius:20px;padding:14px}
+  .hud{display:flex;justify-content:space-between;font-weight:800;font-size:16px;margin-bottom:6px;color:var(--purple)}
+  #map{width:100%;height:auto;display:block;border-radius:14px}
+  #car-pos{transition:transform .22s linear}
+  #car-rot{transition:transform .2s ease}
+  .crash{animation:shake .3s 2}
+  @keyframes shake{25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+  .pulse{animation:pulse 1s ease-in-out 3}
+  @keyframes pulse{50%{transform:scale(1.25)}}
+  .btnrow{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+  .btnrow button{flex:1;min-width:110px;font-size:17px;padding:10px 8px}
+  .msg{min-height:52px;margin-top:10px;font-weight:800;font-size:18px;line-height:1.4}
+  .msg.bad{color:var(--pink)} .msg.ok{color:var(--green-d)}
+  .legend{background:#fff;border-radius:12px;padding:8px 10px;margin-top:8px;font-size:15px}
+  .legend div{display:flex;align-items:center;gap:8px;margin:4px 0}
+  .legend svg{flex:none}
+  #blocklyBox{background:#fff;border:3px solid var(--line);border-radius:20px;overflow:hidden}
+  #blocklyDiv{height:470px;width:100%}
+  @media (max-width:860px){#blocklyDiv{height:380px}}
+
+  /* 結果 */
+  .res-head{display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+  .res-head .big{width:96px;height:96px;background:#fff;border-radius:22px;display:grid;place-items:center}
+  .tagrow{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+  .tag{background:#fff;border:2px solid var(--line);border-radius:999px;padding:3px 12px;font-size:15px;font-weight:700}
+  .bars{display:grid;gap:8px;margin:12px 0}
+  .bar-row{display:grid;grid-template-columns:110px 1fr 40px;align-items:center;gap:10px;font-weight:700}
+  .bar{display:block;height:16px;background:#fff;border-radius:8px;overflow:hidden}
+  .bar i{display:block;height:100%;background:var(--green);border-radius:8px}
+  .bar.c i{background:var(--orange)} .bar.t i{background:var(--pink)} .bar.s i{background:var(--blue)}
+  .codebox{font-family:ui-monospace,Menlo,monospace;font-size:13px;height:84px}
+
+  /* 老師 */
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  @media (max-width:860px){.grid2{grid-template-columns:1fr}}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+  .toolbar button{font-size:16px;padding:9px 14px}
+  table.roster{width:100%;border-collapse:separate;border-spacing:0 6px;font-size:16px}
+  .roster th{text-align:left;color:var(--purple);font-size:14px;padding:0 8px}
+  .roster td{background:#fff;padding:6px 8px;font-weight:700}
+  .roster td:first-child{border-radius:12px 0 0 12px}.roster td:last-child{border-radius:0 12px 12px 0}
+  .roster .bar{width:70px;height:10px}
+  .nm{display:flex;align-items:center;gap:8px}
+  .sliders{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  @media (max-width:640px){.sliders{grid-template-columns:1fr}}
+  .sliders label{font-weight:800;color:var(--purple);font-size:15px;display:block}
+  .sliders input{width:100%;accent-color:var(--green)}
+  .pairs{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:14px}
+  .pair{background:#fff;border-radius:18px;padding:12px;border:3px solid var(--line)}
+  .pair.locked{border-color:var(--orange)}
+  .pair-h{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+  .pair-h b{font-size:20px;color:var(--purple)}
+  .score{margin-left:auto;font-weight:800;border-radius:999px;padding:2px 10px;font-size:15px;color:#fff;background:var(--green)}
+  .score.mid{background:var(--orange)} .score.low{background:var(--pink)}
+  .pair-h .lockbtn{background:none;color:inherit;padding:2px 6px;font-size:20px}
+  .pair-body{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .pchip{background:var(--tint);color:var(--text);border:3px solid transparent;padding:8px;text-align:left;font-size:15px;line-height:1.35;border-radius:14px}
+  .pchip.sel{border-color:var(--pink);background:#ffe9ef}
+  .pchip .n{font-size:17px;display:flex;align-items:center;gap:6px}
+  .why{margin-top:8px;font-size:14px;display:flex;flex-direction:column;gap:3px}
+  .why .good::before{content:"✔ ";color:var(--green-d)} .why .warn::before{content:"⚠ ";color:var(--orange)}
+  .rolebar{display:flex;height:26px;border-radius:13px;overflow:hidden;margin:8px 0}
+  .rolebar span{display:grid;place-items:center;color:#fff;font-size:14px;font-weight:800;min-width:0}
+  details{margin-bottom:18px}
+  summary{cursor:pointer;font-weight:800;color:var(--purple);font-size:20px}
+  details ol{line-height:1.8;margin:8px 0}
+  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--text);color:#fff;padding:10px 18px;border-radius:999px;font-weight:700;z-index:99}
+
+  /* 課堂大螢幕 */
+  body.present .topbar,body.present .foot{display:none}
+  body.present .wrap{max-width:none;padding:12px 28px 20px}
+  .scr-head{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:14px}
+  .scr-title{font-size:26px;font-weight:900;color:var(--purple);white-space:nowrap}
+  .scr-tabs{display:flex;gap:8px;flex:1;flex-wrap:wrap}
+  .scr-tab{background:var(--tint);color:var(--purple);font-size:17px;padding:8px 14px;border-radius:999px;white-space:nowrap}
+  .scr-tab.on{background:var(--green);color:#fff}
+  #scr-timer{font-variant-numeric:tabular-nums;font-size:32px;font-weight:900;color:var(--purple);background:var(--tint);border-radius:16px;padding:2px 16px;white-space:nowrap}
+  #scr-timer.warn{color:var(--orange)} #scr-timer.over{color:#fff;background:var(--pink);animation:pulse 1s infinite}
+  #scr-body{font-size:22px;min-height:60vh}
+  #scr-body h3{font-size:28px}
+  .big-num{font-size:56px;font-weight:900;color:var(--green-d)} .big-num small{font-size:26px;color:var(--purple);margin-left:8px}
+  .pbar{height:28px;border-radius:14px;background:var(--tint);overflow:hidden;margin:8px 0 18px}
+  .pbar i{display:block;height:100%;background:linear-gradient(90deg,var(--green),#9be8b6);border-radius:14px;transition:width .6s}
+  .bubbles{display:flex;flex-wrap:wrap;gap:12px}
+  .bubble{background:var(--tint);border-radius:18px;padding:10px 14px;display:flex;flex-direction:column;align-items:center;min-width:104px;font-size:18px;animation:pop .4s}
+  .bubble.done{background:#e3f8ec;border:3px solid var(--green)}
+  .bubble.prog{background:#fff3e0;border:3px dashed var(--orange)}
+  .bubble.ghost{opacity:.45}
+  .bubble span{font-size:15px;color:#7d6e80}
+  .bav{height:46px;display:grid;place-items:center;font-size:32px}
+  @keyframes pop{from{transform:scale(.6);opacity:0}}
+  .cheer{margin-top:20px;font-size:32px;font-weight:900;color:var(--pink);text-align:center}
+  .votes{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:12px}
+  .vote{background:var(--tint);border-radius:16px;padding:12px 14px}
+  .vq{font-weight:800;color:var(--purple);margin-bottom:6px;font-size:19px}
+  .vbar{height:16px;border-radius:8px;background:var(--orange);overflow:hidden}
+  .vbar i{display:block;height:100%;background:var(--green)}
+  .vl{display:flex;justify-content:space-between;gap:8px;font-size:16px;margin-top:4px}
+  .awards{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;margin:10px 0 20px}
+  .award{background:#fff8e1;border:3px solid var(--yellow);border-radius:16px;padding:12px;text-align:center}
+  .award .ic{font-size:40px} .award b{display:block;font-size:20px;color:var(--purple)}
+  .award .nm2{font-size:22px;font-weight:900} .award small{color:#7d6e80;font-size:15px}
+  .spot{background:linear-gradient(135deg,#e3f8ec,#f1ecf5);border-radius:24px;padding:22px;margin-bottom:18px;text-align:center;animation:pop .5s}
+  .spot h2{font-size:34px}
+  .spot .duo{display:flex;justify-content:center;align-items:center;gap:26px;margin:10px 0;flex-wrap:wrap}
+  .spot .who{background:#fff;border-radius:20px;padding:14px 22px;min-width:190px}
+  .spot .who .nm{justify-content:center;font-size:30px;font-weight:900}
+  .spot .plus{font-size:44px}
+  .spot ul{list-style:none;padding:0;margin:8px auto 0;max-width:780px;text-align:left;font-size:24px;line-height:1.6}
+  .mini-pairs{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
+  .mini{background:var(--tint);border-radius:14px;padding:10px 12px;font-size:18px;animation:pop .4s}
+  .mini.hid{opacity:.35;text-align:center}
+  .mini small{display:block;color:#7d6e80;font-size:14px;margin-top:2px}
+  .hs{font-size:30px;line-height:1.6;background:var(--tint);border-radius:20px;padding:18px 28px}
+  .hs ol{margin:8px 0}
+  .join{display:flex;gap:44px;align-items:center;justify-content:center;flex-wrap:wrap;padding-top:18px}
+  .qrbox{background:#fff;padding:16px;border-radius:20px;border:4px solid var(--line)}
+  .roomcode{font-size:76px;font-weight:900;letter-spacing:12px;color:var(--purple);line-height:1.1}
+  .scr-ctl{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px;opacity:.85}
+  .scr-ctl button{font-size:15px;padding:8px 12px}
+  .bigbtn{font-size:30px;padding:16px 34px}
+
+  /* 列印拍檔卡 */
+  #print-root{display:none}
+  @media print{
+    body>*:not(#print-root){display:none!important}
+    #print-root{display:block!important}
+    @page{size:A4;margin:8mm}
+  }
+  .cards{display:grid;grid-template-columns:1fr 1fr;gap:6mm}
+  .card{border:2px dashed #999;border-radius:6mm;padding:4mm 5mm;height:88mm;overflow:hidden;break-inside:avoid;display:flex;flex-direction:column;gap:1.5mm;position:relative}
+  .card .no{position:absolute;top:4mm;right:5mm;font-size:22pt;font-weight:900}
+  .card .half{width:30mm;height:30mm;flex:none}
+  .card .nick{font-size:16pt;font-weight:900;display:flex;align-items:center;gap:3mm}
+  .card .fav{font-size:13pt}
+  .card .hint{font-size:9pt;color:#444}
+  .card .qs{font-size:8.5pt;line-height:1.25;color:#333;margin:0;padding-left:5mm}
+</style>
+<script>
+/* ===== 部署設定（上載 GitHub Pages 前修改） =====
+   dbUrl：Firebase Realtime Database 網址，例如 https://xxxx-default-rtdb.asia-southeast1.firebasedatabase.app
+          留空 = 單機模式（同學喺同一部機玩，靠結果碼或同機記錄）。
+   pin  ：老師入口密碼（網頁原始碼係公開嘅，請改一個唔易估嘅）。 */
+window.VB_CONFIG={dbUrl:'https://vincibot-grouping-default-rtdb.asia-southeast1.firebasedatabase.app',pin:'25205820'};
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/blockly@10.4.3/blockly.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/blockly@10.4.3/msg/zh-hant.js"></script>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>🚦 路路通 <small>VinciBot 拍檔配對戰</small></h1>
+  <span class="drive">🚗</span>
+</div>
+
+<div class="wrap">
+
+<!-- ① 歡迎 / 破冰名片 -->
+<section class="screen" id="s-welcome">
+  <div class="panel">
+    <h2>小司機報到！</h2>
+    <p class="muted">完成 3 個駕駛任務，我哋會幫你揾到最啱嘅比賽拍檔。冇對錯，只有唔同強項 ✨</p>
+    <div class="tagrow"><span class="tag" id="room-badge" hidden></span></div>
+    <div class="form-row" id="room-row" hidden><label for="roomcode">房間碼（老師畫面上嘅 5 個字）</label>
+      <input type="text" id="roomcode" maxlength="8" style="text-transform:uppercase" autocomplete="off"></div>
+    <div class="form-row"><label for="nick">你嘅暱稱（最多 6 個字，唔好用真名）</label>
+      <input type="text" id="nick" maxlength="6" placeholder="例如：阿樂" autocomplete="off"></div>
+    <div class="form-row"><label>揀一個你鍾意嘅交通標誌</label><div class="avatars" id="avatars"></div></div>
+    <div class="form-row"><label>破冰名片：你鍾意（可以唔揀）</label><div id="favs"></div></div>
+    <button class="go" id="btn-start" disabled style="font-size:24px;padding:14px 28px">🚗 出發！</button>
+  </div>
+</section>
+
+<!-- ② 二揀一 -->
+<section class="screen" id="s-cards" hidden>
+  <div class="panel">
+    <div class="dots" id="dots"></div>
+    <div class="muted" id="card-no"></div>
+    <div class="q" id="card-q"></div>
+    <div class="choices"><button class="choice" id="ca"></button><button class="choice" id="cb"></button></div>
+  </div>
+</section>
+
+<!-- ③ Blockly 遊戲 -->
+<section class="screen" id="s-game" hidden>
+  <div class="lv-tabs" id="lv-tabs"></div>
+  <div class="game">
+    <div class="mapbox">
+      <div class="hud"><span id="hud-lv"></span><span id="hud-state">速度：🐇 快　燈：關</span></div>
+      <svg id="map" viewBox="0 0 364 364"></svg>
+      <div class="btnrow">
+        <button class="orange" id="btn-scan">👀 掃描賽道</button>
+        <button class="go" id="btn-run">▶ 出發</button>
+        <button class="ghost" id="btn-reset">⟲ 車返起點</button>
+      </div>
+      <div class="msg" id="msg"></div>
+      <div class="legend" id="legend" hidden></div>
+      <div class="btnrow">
+        <button class="ghost" id="btn-clear">🗑 清空積木</button>
+        <button class="pink" id="btn-skip" hidden>⏭ 跳過呢關</button>
+        <button class="go" id="btn-next" hidden>下一關 ▶</button>
+      </div>
+    </div>
+    <div>
+      <p id="story" style="margin:0 0 8px;font-weight:700"></p>
+      <div id="blocklyBox"><div id="blocklyDiv"></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ④ 結果 -->
+<section class="screen" id="s-result" hidden>
+  <div class="panel">
+    <div class="res-head">
+      <div class="big" id="res-av"></div>
+      <div><h2 id="res-name" style="margin:0"></h2><div id="res-role" style="font-size:22px;font-weight:800"></div>
+        <div class="tagrow" id="res-tags"></div></div>
+    </div>
+    <p id="res-desc" style="margin:6px 0"></p>
+    <div class="bars" id="res-bars"></div>
+    <p class="muted" style="margin:0 0 12px">以上係根據你嘅選擇同玩法計出嚟嘅參考，唔係考試成績 😊</p>
+    <div id="res-sync" class="msg" style="min-height:0;margin:0 0 8px"></div>
+    <details id="res-manual">
+      <summary style="font-size:18px">📮 備用：手動交結果碼</summary>
+      <textarea class="codebox" id="res-code" readonly></textarea>
+      <div class="toolbar"><button class="go" id="btn-copy">📋 複製結果碼</button></div>
+    </details>
+    <div class="toolbar">
+      <button class="orange" id="btn-retry" hidden>🔁 重新提交</button>
+      <button class="ghost" id="btn-again">下一位同學</button>
+    </div>
+  </div>
+</section>
+
+<!-- ⑤ 老師入口 -->
+<section class="screen" id="s-teacher" hidden>
+  <details open>
+    <summary>📖 30 分鐘課堂流程（配合「課堂大螢幕」）</summary>
+    <ol>
+      <li><b>0–3 分鐘 開場</b>：簡介比賽（2 人一隊、8 分鐘、4 項任務），講明今日要「揾拍檔」。大螢幕停喺 ⓪，同學掃 QR 加入。</li>
+      <li><b>3–15 分鐘 闖關</b>：大螢幕按「闖關 12 分鐘」計時；同學玩 3 關，完成後交結果碼。①睇進度，催未完成嘅同學。</li>
+      <li><b>15–18 分鐘 老師配對</b>：貼結果碼 → 自動配對 → 微調。同時大螢幕轉去 ②，同學睇全班投票同獎項。</li>
+      <li><b>18–23 分鐘 揭曉</b>：大螢幕轉去 ③，逐對揭曉，每對讀出分組原因。</li>
+      <li><b>23–30 分鐘 握手任務</b>：轉去 ④，同學搵到拍檔，完成 3 條破冰題（按「握手 6 分鐘」計時），再諗隊名。</li>
+    </ol>
+    <p class="muted" style="margin:4px 0">大螢幕快捷鍵：← → 轉步驟、空白鍵揭曉下一對。列印拍檔卡係選用，時間唔夠可以唔印。</p>
+  </details>
+
+  <div class="panel" id="t-room" hidden>
+    <h2>🏠 課堂房間</h2>
+    <div style="display:flex;gap:22px;align-items:center;flex-wrap:wrap">
+      <div id="t-qr" style="background:#fff;padding:10px;border-radius:14px;min-width:190px;min-height:190px"></div>
+      <div>
+        <div class="muted">房間碼</div>
+        <div id="t-roomcode" style="font-size:48px;font-weight:900;letter-spacing:8px;color:var(--purple)"></div>
+        <div class="muted" id="t-joinurl" style="word-break:break-all;max-width:460px"></div>
+        <div class="muted" id="t-conn" style="margin:4px 0">連線中…</div>
+        <div class="toolbar">
+          <button id="t-copyurl">🔗 複製加入連結</button>
+          <button class="ghost" id="t-newroom">🔄 新房間</button>
+          <button class="ghost" id="t-delroom">🗑 刪除房間資料</button>
+        </div>
+      </div>
+    </div>
+    <p class="muted" style="margin:8px 0 0">同學掃 QR（或者打開連結） → 輸入暱稱 → 玩完自動交結果。結果會自動加入下面名單；已經配對後，新結果會等你確認。</p>
+  </div>
+  <div class="panel" id="t-nocloud" hidden>
+    <h2>單機模式</h2>
+    <p class="muted" style="margin:0">未設定 Firebase，同學要喺同一部機玩，或者用結果碼交俾你。設定方法請睇「部署教學」。</p>
+  </div>
+
+  <div class="panel">
+    <h2>① 收集同學結果</h2>
+    <textarea id="t-paste" rows="3" placeholder="將同學嘅結果碼貼喺度（一行一個，可以一次貼好多個）"></textarea>
+    <div class="toolbar">
+      <button class="go" id="t-add">➕ 加入名單</button>
+      <button id="t-local">📥 加入新結果</button>
+      <button class="orange" id="t-demo">🧪 載入示範 24 人</button>
+      <button class="ghost" id="t-clear">清空名單</button>
+      <button class="ghost" id="t-wipe">🧹 清除今部機記錄</button>
+    </div>
+    <div class="toolbar" style="align-items:center">
+      <label for="t-expected" class="muted" style="margin:0">全班預計人數</label>
+      <input type="number" id="t-expected" min="0" max="80" style="width:90px;font:inherit;padding:8px;border-radius:12px;border:3px solid var(--line)">
+      <button class="pink" id="t-screen">📺 打開課堂大螢幕</button>
+      <span class="muted" id="t-count"></span>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="panel">
+      <h2>② 班級概覽</h2>
+      <div id="t-overview" class="muted">未有資料</div>
+    </div>
+    <div class="panel">
+      <h2>③ 配對偏好</h2>
+      <div class="sliders">
+        <div><label>角色互補 <span id="wv-r">50</span></label><input type="range" id="w-r" min="0" max="100" value="50"></div>
+        <div><label>節奏相近 <span id="wv-t">25</span></label><input type="range" id="w-t" min="0" max="100" value="25"></div>
+        <div><label>溝通平衡 <span id="wv-s">25</span></label><input type="range" id="w-s" min="0" max="100" value="25"></div>
+      </div>
+      <div class="toolbar">
+        <button class="go" id="t-pair">✨ 自動配對</button>
+        <button id="t-reroll">🎲 換個方案</button>
+      </div>
+      <p class="muted" style="margin:0">默契分數只係參考。點兩位同學可以互換；🔒 鎖定嘅拍檔唔會被重新配對。</p>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>④ 配對結果</h2>
+    <div id="t-pairs" class="muted">未配對</div>
+    <div class="toolbar">
+      <button class="pink" id="t-print">🖨 列印拍檔卡</button>
+      <button id="t-copylist">📋 複製名單</button>
+      <button id="t-csv">⬇ 匯出 CSV</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>學生名單</h2>
+    <div style="overflow-x:auto"><table class="roster" id="t-table"></table></div>
+  </div>
+  <div class="toolbar"><button class="ghost" id="t-exit">← 返回學生版</button></div>
+</section>
+
+</div>
+
+<section class="screen" id="s-screen" hidden style="padding:0 24px">
+  <div class="scr-head">
+    <span class="scr-title">🚦 路路通</span>
+    <div class="scr-tabs">
+      <button class="scr-tab" data-go="0">⓪ 掃碼加入</button>
+      <button class="scr-tab" data-go="1">① 大家嘅進度</button>
+      <button class="scr-tab" data-go="2">② 有趣回答</button>
+      <button class="scr-tab" data-go="3">③ 分組揭曉</button>
+      <button class="scr-tab" data-go="4">④ 握手任務</button>
+    </div>
+    <span id="scr-timer">⏱ --:--</span>
+  </div>
+  <div id="scr-body"></div>
+  <div class="scr-ctl">
+    <button class="ghost" data-step="-1">◀ 上一步</button>
+    <button class="ghost" data-step="1">下一步 ▶</button>
+    <button class="orange" data-timer="12">⏱ 闖關 12 分鐘</button>
+    <button class="orange" data-timer="6">⏱ 握手 6 分鐘</button>
+    <button class="ghost" data-timer="0">⏹ 停止計時</button>
+    <button class="ghost" id="scr-back">← 返回老師版</button>
+  </div>
+</section>
+
+<div class="foot">VinciBot 道路安全編程比賽 · 分組破冰遊戲　<a href="#teacher" id="lnk-teacher">老師入口</a></div>
+<div id="print-root"></div>
+
+<script>
+(function(){
+'use strict';
+
+/* ================= 工具 ================= */
+const $ = (s,el=document)=>el.querySelector(s);
+const $$ = (s,el=document)=>[...el.querySelectorAll(s)];
+const clamp=(v,a=0,b=100)=>Math.max(a,Math.min(b,v));
+const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:0;
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const store={
+  get(k){try{return localStorage.getItem(k)}catch(e){return null}},
+  set(k,v){try{localStorage.setItem(k,v)}catch(e){}}
+};
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function toast(t){const d=document.createElement('div');d.className='toast';d.textContent=t;document.body.appendChild(d);setTimeout(()=>d.remove(),1800)}
+const PIN=(window.VB_CONFIG&&window.VB_CONFIG.pin)||'vinci';
+
+/* ================= 雲端（Firebase Realtime Database，REST 連線） ================= */
+const DB=String((window.VB_CONFIG&&window.VB_CONFIG.dbUrl)||'').replace(/\/+$/,'');
+const CLOUD=!!DB;
+const urlRoom=(new URLSearchParams(location.search).get('room')||'').toUpperCase();
+const ROOM_RE=/^[A-Z0-9]{4,8}$/;
+let ROOM=ROOM_RE.test(urlRoom)?urlRoom:'';   // 學生只認網址上嘅房間碼；老師版另外記住
+const keyOf=n=>String(n).replace(/[.#$\[\]\/]/g,'_').slice(0,20);
+async function dbReq(method,path,body){
+  const r=await fetch(`${DB}/rooms/${ROOM}${path?'/'+path:''}.json`,{method,
+    headers:body!==undefined?{'Content-Type':'application/json'}:undefined,
+    body:body!==undefined?JSON.stringify(body):undefined});
+  if(!r.ok) throw new Error('HTTP '+r.status);
+  return r.json();
+}
+const joinUrl=()=>`${location.href.split('#')[0].split('?')[0]}?room=${ROOM}`;
+function drawQR(el,text,size){
+  el.innerHTML='';
+  if(typeof QRCode==='undefined'){el.textContent=text;return}
+  new QRCode(el,{text,width:size,height:size,correctLevel:QRCode.CorrectLevel.M});
+}
+function newRoomCode(){const A='ABCDEFGHJKMNPQRSTUVWXYZ23456789';return Array.from({length:5},()=>A[Math.floor(Math.random()*A.length)]).join('')}
+
+/* ================= 交通標誌 SVG ================= */
+const SIGN_INNER={
+  stop:'<polygon points="30,4 70,4 96,30 96,70 70,96 30,96 4,70 4,30" fill="#e11d48" stroke="#fff" stroke-width="5"/><text x="50" y="59" font-size="25" font-weight="900" fill="#fff" text-anchor="middle" font-family="Arial,sans-serif">STOP</text>',
+  limit:'<circle cx="50" cy="50" r="45" fill="#fff" stroke="#e11d48" stroke-width="10"/><text x="50" y="65" font-size="42" font-weight="900" fill="#111" text-anchor="middle" font-family="Arial,sans-serif">20</text>',
+  parking:'<rect x="5" y="5" width="90" height="90" rx="14" fill="#2563eb" stroke="#fff" stroke-width="4"/><text x="50" y="76" font-size="70" font-weight="900" fill="#fff" text-anchor="middle" font-family="Arial,sans-serif">P</text>',
+  noEntry:'<circle cx="50" cy="50" r="46" fill="#e11d48" stroke="#fff" stroke-width="4"/><rect x="18" y="41" width="64" height="18" rx="3" fill="#fff"/>',
+  noLeft:'<circle cx="50" cy="50" r="43" fill="#fff" stroke="#e11d48" stroke-width="10"/><path d="M66 50H36M36 50l12-12M36 50l12 12" stroke="#111" stroke-width="9" fill="none" stroke-linecap="round" stroke-linejoin="round"/><line x1="26" y1="76" x2="74" y2="24" stroke="#e11d48" stroke-width="9" stroke-linecap="round"/>',
+  headlight:'<circle cx="50" cy="50" r="46" fill="#2563eb" stroke="#fff" stroke-width="4"/><text x="50" y="67" font-size="48" text-anchor="middle">💡</text>'
+};
+const SIGN_TYPES=['stop','limit','parking','noEntry','noLeft','headlight'];
+const SIGN_NAME={stop:'停車標誌',limit:'限速 20',parking:'停車位',noEntry:'禁止進入',noLeft:'禁止左轉',headlight:'車頭燈'};
+const SIGN_RULE={
+  stop:'離開呢格前，要先「等待 1 秒」',
+  limit:'地上寫住 20 嘅路段，入去前要設定做慢速',
+  noEntry:'呢條路唔可以行入去',
+  noLeft:'喺呢個路口唔可以向左轉（轉三次右都算）',
+  headlight:'經過呢格時，車頭燈要開咗'
+};
+const signSVG=(t,size=40)=>`<svg viewBox="0 0 100 100" width="${size}" height="${size}" aria-hidden="true">${SIGN_INNER[t]}</svg>`;
+function halfSignSVG(t,side,uid){
+  const x=side==='L'?0:50;
+  return `<svg viewBox="0 0 100 100" aria-hidden="true"><defs><clipPath id="hc${uid}"><rect x="${x}" y="0" width="50" height="100"/></clipPath></defs><g clip-path="url(#hc${uid})">${SIGN_INNER[t]}</g></svg>`;
+}
+
+/* ================= 破冰名片 + 二揀一 ================= */
+const FAVS=[
+  {k:'food',label:'食物',opts:['🍜','🍕','🍣','🍰']},
+  {k:'pet',label:'動物',opts:['🐶','🐱','🐹','🦖']},
+  {k:'hobby',label:'興趣',opts:['⚽','🎮','🎨','🎵']}
+];
+// e: 對 N 領航 / C 編程 / T 節奏(高=快) / S 社交(高=健談) 嘅影響
+const CARDS=[
+  {q:'比賽開始前，你最想做咩？',a:{t:'🔭 先睇清楚賽道',e:{N:2,T:-1}},b:{t:'🛠 即刻砌第一段試下',e:{C:2,T:1}}},
+  {q:'隊友想用另一個方法，你會…',a:{t:'🤝 聽哂佢講，再決定',e:{N:1,S:1}},b:{t:'🧪 兩個方法都試下',e:{C:1,S:1}}},
+  {q:'8 分鐘比賽，你想負責…',a:{t:'👀 睇賽道、報距離、睇時間',e:{N:2}},b:{t:'⌨️ 寫程式、測試、修改',e:{C:2}}},
+  {q:'程式行錯路，你會…',a:{t:'🔍 逐段檢查邊度出錯',e:{N:1,T:-1}},b:{t:'🔁 改一改，即刻再行',e:{C:1,T:1}}},
+  {q:'新同學坐喺你隔離，你會…',a:{t:'👋 主動打招呼',e:{S:2}},b:{t:'🙂 等佢先開口',e:{S:-2}}},
+  {q:'分組做作品，你鍾意…',a:{t:'🎉 多啲人，熱熱鬧鬧',e:{S:1}},b:{t:'🎯 兩個人，專心做嘢',e:{S:-1}}},
+  {q:'你更似邊種小司機？',a:{t:'🐢 穩陣駕駛，慢而準',e:{T:-2}},b:{t:'🐇 快速出發，邊行邊改',e:{T:2}}},
+  {q:'見到「停車標誌」，你會…',a:{t:'🛑 一定停足 1 秒',e:{N:1}},b:{t:'😎 睇下有冇車先算',e:{T:1}}}
+];
+function selfScores(picks){ // picks: ['a'|'b',...]
+  const out={};
+  for(const d of ['N','C','T','S']){
+    let raw=0,mn=0,mx=0;
+    CARDS.forEach((c,i)=>{
+      const va=c.a.e[d]||0, vb=c.b.e[d]||0;
+      mn+=Math.min(va,vb); mx+=Math.max(va,vb);
+      raw+=(picks[i]==='a'?va:vb);
+    });
+    out[d]=mx>mn?(raw-mn)/(mx-mn)*100:50;
+  }
+  return out;
+}
+
+/* ================= 角色判斷 ================= */
+const ROLE={
+  nav:{icon:'🔭',name:'領航員',color:'#4FCE7E',desc:'眼光銳利，擅長觀察賽道、報距離、睇時間，係隊伍嘅「導航雷達」。',tip:'比賽時適合負責睇賽道同計時'},
+  code:{icon:'💻',name:'程式機師',color:'#F28C28',desc:'手快腦靈，鍾意即刻砌積木、測試同修改程式。',tip:'比賽時適合負責編程'},
+  all:{icon:'🧰',name:'全能車長',color:'#715874',desc:'觀察同編程都叻，可以補位，亦可以帶動隊友。',tip:'可以擔任任何位置'},
+  flex:{icon:'🌱',name:'靈活新星',color:'#3b82f6',desc:'兩邊都有潛力，跟拍檔配搭就會愈夾愈好。',tip:'配搭強項明顯嘅拍檔最理想'}
+};
+function roleOf(s){
+  if(Math.min(s.N,s.C)>=55) return 'all';
+  const lean=s.N-s.C;
+  if(lean>=12) return 'nav';
+  if(lean<=-12) return 'code';
+  return 'flex';
+}
+const tempoTag=T=>T>=62?'🐇 速度型':T<=38?'🐢 穩陣型':'⚖ 平衡型';
+const socialTag=S=>S>=62?'🎤 健談':S<=38?'🤫 安靜':'🙂 友善';
+
+/* ================= 結果碼 ================= */
+function encodeCode(o){return 'VB1.'+btoa(unescape(encodeURIComponent(JSON.stringify(o))))}
+function decodeCode(line){
+  line=line.trim(); const i=line.indexOf('VB1.'); if(i<0) return null;
+  try{
+    const o=JSON.parse(decodeURIComponent(escape(atob(line.slice(i+4).replace(/\s/g,'')))));
+    if(typeof o.n!=='string'||!['N','C','T','S'].every(k=>typeof o[k]==='number')) return null;
+    o.a=SIGN_TYPES.includes(o.a)?o.a:'stop'; o.f=Array.isArray(o.f)?o.f.slice(0,3):[];
+    o.p=typeof o.p==='string'?o.p:''; o.g=(o.g&&typeof o.g==='object')?o.g:null;
+    o.role=roleOf(o); return o;
+  }catch(e){return null}
+}
+
+/* ================= 關卡 ================= */
+const key=(x,y)=>x+','+y;
+function segs(list){const s=new Set();for(const [x1,y1,x2,y2] of list){const dx=Math.sign(x2-x1),dy=Math.sign(y2-y1);let x=x1,y=y1;s.add(key(x,y));while(x!==x2||y!==y2){x+=dx;y+=dy;s.add(key(x,y))}}return s}
+const DX=[0,1,0,-1], DY=[-1,0,1,0];
+const LEVELS=[
+  {name:'新手上路',story:'① 砌積木，叫 VinciBot 由 🚗 出發，駛到 🏁 終點！先將積木接喺「出發」下面。',
+   start:{x:0,y:5,d:0},goal:{x:4,y:2},roads:segs([[0,5,0,2],[0,2,4,2]]),signs:[],limit:new Set(),
+   tools:['vb_move','vb_left','vb_right'],
+   sol:[{t:'move',n:3},{t:'right'},{t:'move',n:4}]},
+  {name:'標誌大考驗',story:'② 路上有交通標誌喇！守規矩去到 🏁 終點。小心：禁止進入嘅捷徑係陷阱 😈',
+   start:{x:0,y:6,d:0},goal:{x:4,y:4},roads:segs([[0,6,0,2],[0,2,4,2],[4,2,4,4],[0,4,4,4]]),
+   signs:[{x:0,y:4,type:'stop'},{x:1,y:4,type:'noEntry'},{x:1,y:2,type:'limit'}],limit:new Set([key(2,2),key(3,2)]),
+   tools:['vb_move','vb_left','vb_right','vb_wait','vb_speed','vb_repeat'],
+   sol:[{t:'move',n:2},{t:'wait'},{t:'move',n:2},{t:'right'},{t:'move',n:1},{t:'speed',v:'slow'},{t:'move',n:3},{t:'right'},{t:'move',n:2}]},
+  {name:'禁止左轉挑戰',story:'③ 任務三挑戰：路口禁止左轉，經過 💡 要開車頭燈。想一想，唔轉左點樣去 🏁？',
+   start:{x:3,y:6,d:0},goal:{x:0,y:3},roads:segs([[3,6,3,3],[0,5,6,5],[0,3,6,3],[6,3,6,5],[0,3,0,5]]),
+   signs:[{x:3,y:5,type:'noLeft'},{x:3,y:3,type:'noLeft'},{x:6,y:4,type:'headlight'}],limit:new Set(),
+   tools:['vb_move','vb_left','vb_right','vb_wait','vb_speed','vb_light','vb_repeat'],
+   sol:[{t:'light'},{t:'move',n:1},{t:'right'},{t:'move',n:3},{t:'left'},{t:'move',n:2},{t:'left'},{t:'move',n:6}]}
+];
+const VIOL_MSG={
+  stop:'🛑 離開停車標誌前，要先「等待 1 秒」！（提示：要分開兩段行）',
+  speed:'🚦 呢度限速 20！入區前要先「設定速度」做慢速。',
+  noEntry:'⛔ 禁止進入！呢條路唔可以行。',
+  noLeft:'↩️ 呢個路口禁止左轉！想一想有冇其他路行。',
+  light:'💡 燈號標誌：經過前要先開車頭燈。',
+  offroad:'💥 撞出馬路啦！檢查下行幾多格同轉向。',
+  notgoal:'🏁 程式完咗，但仲未到終點。',
+  empty:'先砌啲積木喇，接喺「出發」下面！'
+};
+
+/** 模擬 VinciBot 行駛；回傳影格同結果 */
+function simulate(L,acts){
+  const s={x:L.start.x,y:L.start.y,d:L.start.d,speed:'fast',light:false};
+  const waited=new Set(); let entryDir=s.d;
+  const frames=[{...s,id:null}];
+  const signAt=(x,y)=>L.signs.find(g=>g.x===x&&g.y===y);
+  const bad=(kind,id)=>{frames.push({...s,id,crash:kind});return{ok:false,kind,frames}};
+  if(!acts.length) return{ok:false,kind:'empty',frames};
+  for(const a of acts){
+    if(a.t==='left'){s.d=(s.d+3)%4;frames.push({...s,id:a.id})}
+    else if(a.t==='right'){s.d=(s.d+1)%4;frames.push({...s,id:a.id})}
+    else if(a.t==='wait'){waited.add(key(s.x,s.y));frames.push({...s,id:a.id,wait:true})}
+    else if(a.t==='speed'){s.speed=a.v;frames.push({...s,id:a.id})}
+    else if(a.t==='light'){s.light=true;frames.push({...s,id:a.id})}
+    else if(a.t==='move'){
+      for(let i=0;i<a.n;i++){
+        const here=signAt(s.x,s.y);
+        if(here&&here.type==='stop'&&!waited.has(key(s.x,s.y))) return bad('stop',a.id);
+        if(here&&here.type==='noLeft'&&((s.d-entryDir+4)%4)===3) return bad('noLeft',a.id);
+        const nx=s.x+DX[s.d], ny=s.y+DY[s.d];
+        if(!L.roads.has(key(nx,ny))) return bad('offroad',a.id);
+        s.x=nx;s.y=ny;entryDir=s.d;
+        const g=signAt(nx,ny);
+        if(g&&g.type==='noEntry'){frames.push({...s,id:a.id});return bad('noEntry',a.id)}
+        if(L.limit.has(key(nx,ny))&&s.speed==='fast'){frames.push({...s,id:a.id});return bad('speed',a.id)}
+        if(g&&g.type==='headlight'&&!s.light){frames.push({...s,id:a.id});return bad('light',a.id)}
+        frames.push({...s,id:a.id});
+      }
+    }
+  }
+  if(s.x===L.goal.x&&s.y===L.goal.y) return{ok:true,frames};
+  return{ok:false,kind:'notgoal',frames};
+}
+
+/* ================= Blockly ================= */
+let ws=null;
+function defineBlocks(){
+  Blockly.defineBlocksWithJsonArray([
+    {type:'vb_start',message0:'🚗 出發',nextStatement:null,colour:'#F28C28'},
+    {type:'vb_move',message0:'向前行 %1 格',args0:[{type:'field_number',name:'N',value:1,min:1,max:9,precision:1}],previousStatement:null,nextStatement:null,colour:'#4FCE7E'},
+    {type:'vb_left',message0:'向左轉 ↶',previousStatement:null,nextStatement:null,colour:'#3b82f6'},
+    {type:'vb_right',message0:'向右轉 ↷',previousStatement:null,nextStatement:null,colour:'#3b82f6'},
+    {type:'vb_wait',message0:'等待 1 秒 ⏱',previousStatement:null,nextStatement:null,colour:'#F95F88'},
+    {type:'vb_speed',message0:'設定速度 %1',args0:[{type:'field_dropdown',name:'V',options:[['🐇 快速','fast'],['🐢 慢速 (20)','slow']]}],previousStatement:null,nextStatement:null,colour:'#715874'},
+    {type:'vb_light',message0:'開車頭燈 💡',previousStatement:null,nextStatement:null,colour:'#d99a00'},
+    {type:'vb_repeat',message0:'重複 %1 次',args0:[{type:'field_number',name:'N',value:2,min:2,max:9,precision:1}],message1:'%1',args1:[{type:'input_statement',name:'DO'}],previousStatement:null,nextStatement:null,colour:'#8b5cf6'}
+  ]);
+}
+const startState=()=>({blocks:{languageVersion:0,blocks:[{type:'vb_start',x:22,y:18,deletable:false,movable:false}]}});
+function ensureWorkspace(){
+  if(ws) return true;
+  if(typeof Blockly==='undefined'){
+    $('#blocklyDiv').innerHTML='<p style="padding:20px;font-weight:800;color:#F95F88">需要連線載入 Blockly 積木，請檢查網絡後重新整理頁面。</p>';
+    return false;
+  }
+  defineBlocks();
+  ws=Blockly.inject('blocklyDiv',{
+    toolbox:{kind:'flyoutToolbox',contents:[]},renderer:'zelos',trashcan:true,sounds:false,
+    zoom:{controls:true,wheel:false,startScale:0.95,maxScale:1.4,minScale:0.6},
+    move:{scrollbars:true,drag:true,wheel:false},
+    media:'https://cdn.jsdelivr.net/npm/blockly@10.4.3/media/'
+  });
+  window.addEventListener('resize',()=>Blockly.svgResize(ws));
+  return true;
+}
+function flatten(block,out=[]){
+  while(block&&out.length<400){
+    if(block.type==='vb_repeat'){
+      const n=+block.getFieldValue('N');
+      for(let i=0;i<n&&out.length<400;i++) flatten(block.getInputTargetBlock('DO'),out);
+    }else{
+      out.push({t:block.type.slice(3),id:block.id,n:+block.getFieldValue('N')||0,v:block.getFieldValue('V')});
+    }
+    block=block.getNextBlock();
+  }
+  return out;
+}
+
+/* ================= 學生流程 ================= */
+const S={nick:'',avatar:null,favs:{},picks:[],lv:0,stats:[],t0:0,running:false,ang:0,L:null};
+function show(id){
+  $$('.screen').forEach(s=>s.hidden=s.id!==id);
+  document.body.classList.toggle('present',id==='s-screen');
+  window.scrollTo(0,0);
+  if(id==='s-game'&&ws) requestAnimationFrame(()=>Blockly.svgResize(ws));
+}
+
+// 歡迎頁
+function initWelcome(){
+  $('#avatars').innerHTML=SIGN_TYPES.map(t=>`<button class="av" data-t="${t}" title="${SIGN_NAME[t]}">${signSVG(t,52)}</button>`).join('');
+  $('#favs').innerHTML=FAVS.map(g=>`<div class="fav-row"><b>${g.label}</b>${g.opts.map(o=>`<button class="chip-btn" data-k="${g.k}" data-v="${o}">${o}</button>`).join('')}</div>`).join('');
+  $('#avatars').onclick=e=>{const b=e.target.closest('.av');if(!b)return;S.avatar=b.dataset.t;$$('.av').forEach(x=>x.classList.toggle('on',x===b));check()};
+  $('#favs').onclick=e=>{const b=e.target.closest('.chip-btn');if(!b)return;const k=b.dataset.k;
+    S.favs[k]=S.favs[k]===b.dataset.v?null:b.dataset.v;
+    $$(`.chip-btn[data-k="${k}"]`).forEach(x=>x.classList.toggle('on',S.favs[k]===x.dataset.v))};
+  $('#nick').oninput=check;
+  function check(){S.nick=$('#nick').value.trim();$('#btn-start').disabled=!(S.nick&&S.avatar)}
+  if(CLOUD){
+    if(ROOM){$('#room-badge').hidden=false;$('#room-badge').textContent='🏠 房間 '+ROOM}
+    else $('#room-row').hidden=false;
+  }
+  $('#btn-start').onclick=async()=>{
+    if(CLOUD){
+      const manual=($('#roomcode').value||'').trim().toUpperCase();
+      if(!ROOM&&ROOM_RE.test(manual)) ROOM=manual;
+      if(ROOM){
+        try{ // 同一房間唔可以有兩位同學用同一個暱稱
+          const k=keyOf(S.nick), [lv,st]=await Promise.all([dbReq('GET','live/'+k),dbReq('GET','students/'+k)]);
+          if(st||(lv&&Date.now()-lv.ts<3*3600000)){toast('呢個暱稱已經有人用，請加個數字或者轉個名');return}
+        }catch(e){toast('連線失敗，會繼續玩，完成後再提交')}
+      }
+    }
+    S.picks=[];setLive('cards');showCard(0);show('s-cards');
+  };
+}
+function showCard(i){
+  const c=CARDS[i];
+  $('#dots').innerHTML=CARDS.map((_,k)=>`<i class="${k<=i?'on':''}"></i>`).join('');
+  $('#card-no').textContent=`第 ${i+1} / ${CARDS.length} 題　（冇標準答案，揀最似你嗰個）`;
+  $('#card-q').textContent=c.q;
+  $('#ca').textContent=c.a.t; $('#cb').textContent=c.b.t;
+  const pick=p=>{S.picks[i]=p;if(i+1<CARDS.length)showCard(i+1);else startGame()};
+  $('#ca').onclick=()=>pick('a'); $('#cb').onclick=()=>pick('b');
+}
+
+// 遊戲
+function startGame(){
+  show('s-game');
+  if(!ensureWorkspace()) return;
+  S.stats=LEVELS.map(()=>({scan:false,runs:0,viol:0,solved:false,firstRunMs:null,repeat:false,blocks:0,ms:0,skipped:false,firstOk:false}));
+  loadLevel(0);
+}
+function loadLevel(i){
+  S.lv=i; S.L=LEVELS[i]; S.t0=Date.now(); S.running=false; setLive('play',i+1);
+  $('#lv-tabs').innerHTML=LEVELS.map((l,k)=>`<span class="lv-tab ${k===i?'on':''} ${S.stats[k]&&(S.stats[k].solved||S.stats[k].skipped)?'done':''}">第 ${k+1} 關 · ${l.name}</span>`).join('');
+  $('#hud-lv').textContent=`第 ${i+1} 關`;
+  $('#story').textContent=S.L.story;
+  $('#legend').hidden=true; $('#legend').innerHTML='';
+  setMsg('',''); $('#btn-next').hidden=true; $('#btn-skip').hidden=true; $('#btn-run').disabled=false;
+  const names={vb_move:1,vb_left:1,vb_right:1,vb_wait:1,vb_speed:1,vb_light:1,vb_repeat:1};
+  ws.updateToolbox({kind:'flyoutToolbox',contents:S.L.tools.filter(t=>names[t]).map(type=>({kind:'block',type}))});
+  ws.clear(); Blockly.serialization.workspaces.load(startState(),ws);
+  drawMap(); Blockly.svgResize(ws);
+}
+function setMsg(t,cls){const m=$('#msg');m.textContent=t;m.className='msg '+(cls||'')}
+
+// 地圖
+const CELL=52;
+function drawMap(){
+  const L=S.L; let h=`<rect width="364" height="364" fill="#dff1d3"/>`;
+  const decor=['🌳','🏠','🌲','','🏢','🌷','','🌳'];
+  for(let y=0;y<7;y++)for(let x=0;x<7;x++){
+    if(L.roads.has(key(x,y))) continue;
+    const e=decor[(x*5+y*3+S.lv)%decor.length];
+    if(e) h+=`<text x="${x*CELL+26}" y="${y*CELL+36}" font-size="26" text-anchor="middle" opacity=".9">${e}</text>`;
+  }
+  for(const k of L.roads){
+    const [x,y]=k.split(',').map(Number);
+    h+=`<rect x="${x*CELL}" y="${y*CELL}" width="${CELL}" height="${CELL}" fill="#4b5563" stroke="#5b6573" stroke-width="1"/>`;
+    if(L.limit.has(k)) h+=`<rect x="${x*CELL+2}" y="${y*CELL+2}" width="${CELL-4}" height="${CELL-4}" fill="#e11d48" opacity=".22"/><text x="${x*CELL+26}" y="${y*CELL+34}" font-size="20" font-weight="900" fill="#fff" text-anchor="middle" font-family="Arial,sans-serif">20</text>`;
+  }
+  // 起點、終點
+  h+=`<text x="${L.goal.x*CELL+26}" y="${L.goal.y*CELL+36}" font-size="30" text-anchor="middle">🏁</text>`;
+  for(const g of L.signs){
+    h+=`<g class="sign" data-t="${g.type}" style="transform-origin:${g.x*CELL+38}px ${g.y*CELL+14}px"><svg x="${g.x*CELL+25}" y="${g.y*CELL+1}" width="26" height="26" viewBox="0 0 100 100">${SIGN_INNER[g.type]}</svg></g>`;
+  }
+  h+=`<g id="car-pos"><g id="car-rot">
+    <polygon id="beam" points="-9,-17 -22,-48 22,-48 9,-17" fill="#fde047" opacity="0"/>
+    <rect x="-10" y="-17" width="20" height="34" rx="6" fill="#F28C28" stroke="#fff" stroke-width="2"/>
+    <rect x="-7" y="-10" width="14" height="8" rx="2" fill="#bfdbfe"/>
+    <circle cx="-6" cy="-16" r="3" id="hl1" fill="#fef9c3"/><circle cx="6" cy="-16" r="3" id="hl2" fill="#fef9c3"/>
+    <rect x="-8" y="13" width="5" height="3" fill="#e11d48"/><rect x="3" y="13" width="5" height="3" fill="#e11d48"/>
+  </g></g><text id="boom" font-size="34" text-anchor="middle" opacity="0">💥</text>`;
+  $('#map').innerHTML=h;
+  resetCar();
+}
+function setCar(f,anim){
+  const pos=$('#car-pos'),rot=$('#car-rot'); if(!pos) return;
+  if(!anim){pos.style.transition='none';rot.style.transition='none'}
+  pos.style.transform=`translate(${f.x*CELL+26}px,${f.y*CELL+26}px)`;
+  rot.style.transform=`rotate(${S.ang}deg)`;
+  if(!anim){pos.getBoundingClientRect();pos.style.transition='';rot.style.transition=''}
+  $('#beam').setAttribute('opacity',f.light?'.55':'0');
+  $('#hl1').setAttribute('fill',f.light?'#fde047':'#fef9c3'); $('#hl2').setAttribute('fill',f.light?'#fde047':'#fef9c3');
+  $('#hud-state').textContent=`速度：${f.speed==='slow'?'🐢 慢 (20)':'🐇 快'}　燈：${f.light?'開 💡':'關'}`;
+}
+function resetCar(){
+  const st={...S.L.start,speed:'fast',light:false};
+  S.ang=st.d*90; setCar(st,false);
+  const b=$('#boom'); if(b) b.setAttribute('opacity','0');
+}
+async function play(frames){
+  let prevD=frames[0].d;
+  for(let k=1;k<frames.length;k++){
+    const f=frames[k], diff=(f.d-prevD+4)%4;
+    if(diff===1)S.ang+=90; else if(diff===3)S.ang-=90; else if(diff===2)S.ang+=180;
+    prevD=f.d;
+    setCar(f,true); if(ws) ws.highlightBlock(f.id);
+    if(f.crash){
+      const b=$('#boom'); b.setAttribute('x',f.x*CELL+26); b.setAttribute('y',f.y*CELL+18); b.setAttribute('opacity','1');
+      $('#car-rot').classList.add('crash'); await sleep(500); $('#car-rot').classList.remove('crash'); break;
+    }
+    await sleep(f.wait?900:(f.speed==='slow'?460:230));
+  }
+  if(ws) ws.highlightBlock(null);
+}
+
+// 按鈕
+function doScan(){
+  const L=S.L; S.stats[S.lv].scan=true;
+  const types=[...new Set(L.signs.map(g=>g.type))];
+  $('#legend').hidden=false;
+  $('#legend').innerHTML=types.length
+    ? types.map(t=>`<div>${signSVG(t,30)}<span><b>${SIGN_NAME[t]}</b>：${SIGN_RULE[t]}</span></div>`).join('')
+    : '<div>🛣 呢關冇交通標誌，淨係要揾啱路線。</div>';
+  $$('#map .sign').forEach(g=>{g.classList.remove('pulse');void g.getBoundingClientRect();g.classList.add('pulse')});
+}
+async function doRun(){
+  if(S.running||!ws) return;
+  const st=S.stats[S.lv];
+  const start=ws.getBlocksByType('vb_start')[0];
+  const acts=flatten(start.getNextBlock());
+  const loose=ws.getTopBlocks().length>1;
+  if(st.firstRunMs===null) st.firstRunMs=Date.now()-S.t0;
+  st.runs++; S.running=true; $('#btn-run').disabled=true; setMsg('','');
+  resetCar(); await sleep(150);
+  const r=simulate(S.L,acts);
+  await play(r.frames);
+  S.running=false; $('#btn-run').disabled=false;
+  if(r.ok){
+    const chain=start.getDescendants(false).filter(b=>b!==start);
+    st.solved=true; st.firstOk=(st.runs===1); st.ms=Date.now()-S.t0; st.blocks=chain.length;
+    st.repeat=chain.some(b=>b.type==='vb_repeat');
+    const stars=st.runs===1?'⭐⭐⭐':st.runs<=3?'⭐⭐':'⭐';
+    setMsg(`🎉 到達終點！${stars}（試咗 ${st.runs} 次）`,'ok');
+    $('#btn-next').hidden=false; $('#btn-skip').hidden=true;
+    $('#btn-next').textContent=S.lv+1<LEVELS.length?'下一關 ▶':'睇我嘅結果 🏆';
+    $('#btn-run').disabled=true;
+    $$('.lv-tab')[S.lv].classList.add('done');
+  }else{
+    if(r.kind!=='empty'&&r.kind!=='notgoal') st.viol++;
+    setMsg(VIOL_MSG[r.kind]+(loose&&r.kind!=='empty'?'　（留意：有積木未接上「出發」）':''),'bad');
+    if(st.runs>=3) $('#btn-skip').hidden=false;
+  }
+}
+function nextLevel(){
+  if(S.lv+1<LEVELS.length) loadLevel(S.lv+1); else finish();
+}
+function skipLevel(){
+  const st=S.stats[S.lv]; st.skipped=true; st.ms=Date.now()-S.t0; nextLevel();
+}
+
+// 計分
+function behaviour(lv){
+  const scan=lv.filter(l=>l.scan).length;
+  const first=lv.filter(l=>l.firstOk).length;
+  const plan=avg(lv.map(l=>(l.firstRunMs??30000)))/1000;
+  const nB=20+10*scan+8*first+(plan>=25?10:plan>=15?5:0);
+  const rep=lv.slice(1).filter(l=>l.repeat).length;
+  const iter=lv.filter(l=>l.solved&&l.runs>=2).length;
+  const all=lv.every(l=>l.solved);
+  const cB=25+12*rep+8*iter+(all?10:0)+(lv[2].solved&&lv[2].blocks<=8?10:0);
+  const total=lv.reduce((a,l)=>a+(l.ms||0),0)/1000;
+  const tB=50+(plan<10?20:plan<20?5:-15)+(total<150?20:total<300?5:-15);
+  return{N:clamp(nB),C:clamp(cB),T:clamp(tB)};
+}
+function computeProfile(){
+  const self=selfScores(S.picks), b=behaviour(S.stats);
+  return{
+    N:Math.round(clamp(.5*self.N+.5*b.N)),
+    C:Math.round(clamp(.5*self.C+.5*b.C)),
+    T:Math.round(clamp(.5*self.T+.5*b.T)),
+    S:Math.round(clamp(self.S))
+  };
+}
+function finish(){
+  const p=computeProfile(); const role=roleOf(p); const R=ROLE[role];
+  const f=FAVS.map(g=>S.favs[g.k]).filter(Boolean);
+  const st3=S.stats;
+  const g={sc:st3.filter(l=>l.scan).length,fo:st3.filter(l=>l.firstOk).length,vi:st3.reduce((a,l)=>a+l.viol,0),
+    ru:st3.reduce((a,l)=>a+l.runs,0),tm:Math.round(st3.reduce((a,l)=>a+(l.ms||0),0)/1000),
+    rp:st3.some(l=>l.repeat)?1:0,so:st3.filter(l=>l.solved).length};
+  const code=encodeCode({n:S.nick,a:S.avatar,N:p.N,C:p.C,T:p.T,S:p.S,f,p:S.picks.join(''),g});
+  setLive('done',3);
+  // 本機名單（同名取最新）
+  let list=[]; try{list=JSON.parse(store.get('vb_roster_v1')||'[]')}catch(e){}
+  list=list.filter(c=>{const o=decodeCode(c);return !o||o.n!==S.nick}); list.push(code);
+  store.set('vb_roster_v1',JSON.stringify(list));
+
+  const lv=S.stats, badges=[];
+  if(lv.filter(l=>l.scan).length>=2) badges.push('👀 掃描達人');
+  if(lv.filter(l=>l.firstOk).length>=2) badges.push('🎯 一擊即中');
+  if(lv.every(l=>l.viol===0)) badges.push('😇 規矩司機');
+  if(lv.some(l=>l.repeat)) badges.push('🔁 迴圈高手');
+  if(lv.every(l=>l.solved)) badges.push('🏆 全關通過');
+  $('#res-av').innerHTML=signSVG(S.avatar,72);
+  $('#res-name').textContent=S.nick;
+  $('#res-role').innerHTML=`${R.icon} ${R.name}`; $('#res-role').style.color=R.color;
+  $('#res-tags').innerHTML=[tempoTag(p.T),socialTag(p.S),...badges,...f].map(t=>`<span class="tag">${esc(t)}</span>`).join('');
+  $('#res-desc').textContent=R.desc+' '+R.tip+'。';
+  $('#res-bars').innerHTML=[['🔭 領航力','',p.N],['💻 編程力','c',p.C],['⚡ 節奏（快）','t',p.T],['🗣 健談度','s',p.S]]
+    .map(([l,c,v])=>`<div class="bar-row"><span>${l}</span><span class="bar ${c}"><i style="width:${v}%"></i></span><span>${v}</span></div>`).join('');
+  $('#res-code').value=code;
+  $('#res-manual').open=!(CLOUD&&ROOM);
+  show('s-result');
+  submitResult(code);
+}
+let lastCode='';
+async function submitResult(code){
+  lastCode=code||lastCode;
+  const el=$('#res-sync'), rb=$('#btn-retry');
+  if(!(CLOUD&&ROOM)){el.textContent='';rb.hidden=true;return}
+  el.className='msg'; el.textContent='⏳ 提交緊俾老師…'; rb.hidden=true;
+  try{
+    await dbReq('PUT','students/'+keyOf(S.nick),lastCode);
+    el.className='msg ok'; el.textContent='✅ 已經交咗俾老師！望下大螢幕啦';
+  }catch(e){
+    el.className='msg bad'; el.textContent='⚠ 暫時提交唔到，請檢查網絡後按「重新提交」';
+    rb.hidden=false; $('#res-manual').open=true;
+  }
+}
+
+/* ================= 老師版 ================= */
+let roster=[], pairs=[], sel=null, seed=1, expected=0;
+const W={r:50,t:25,s:25};
+/* 老師版同大螢幕共用狀態（同一個瀏覽器內，用 localStorage 同步） */
+const CLS='vb_class_v1', LIVE='vb_live_v1';
+function readClass(){try{return JSON.parse(store.get(CLS)||'{}')||{}}catch(e){return{}}}
+let pushed={c:'',s:''}, lastLocalWrite=0, syncTimer=null, remoteSig='';
+function patchClass(o){
+  const c=Object.assign(readClass(),o); store.set(CLS,JSON.stringify(c));
+  if(CLOUD&&ROOM) pushClass(c,o);
+  return c;
+}
+function pushClass(c,o){
+  lastLocalWrite=Date.now();
+  const put=(k,v)=>{if(v===pushed[k])return;pushed[k]=v;dbReq('PUT',k==='c'?'class':'scr',v).catch(()=>setConn(false))};
+  if(['roster','pairs','expected','W'].some(k=>k in o)) put('c',JSON.stringify({roster:c.roster,pairs:c.pairs,expected:c.expected,W:c.W}));
+  if(['step','reveal','timer'].some(k=>k in o)) put('s',JSON.stringify({step:c.step,reveal:c.reveal,timer:c.timer===undefined?null:c.timer}));
+}
+function syncClass(){patchClass({roster,pairs,expected,W:{...W}})}
+function readLive(){
+  let o={}; try{o=JSON.parse(store.get(LIVE)||'{}')}catch(e){}
+  const now=Date.now();
+  return Object.entries(o).filter(([n,v])=>v&&now-v.ts<3*3600000).map(([n,v])=>({n,...v}));
+}
+function setConn(ok){const el=$('#t-conn'); if(el) el.textContent=ok?'🟢 已連線':'🔴 連線失敗，請檢查網絡'}
+/* 老師版 / 大螢幕：每 2 秒由雲端拉返學生結果、進度同共用狀態，寫入本機快取 */
+async function pull(){
+  if(!CLOUD||!ROOM) return;
+  try{
+    const d=(await dbReq('GET',''))||{};
+    setConn(true);
+    store.set('vb_roster_v1',JSON.stringify(Object.values(d.students||{})));
+    store.set(LIVE,JSON.stringify(d.live||{}));
+    if(Date.now()-lastLocalWrite>2500){
+      const next=readClass();
+      try{if(d.class)Object.assign(next,JSON.parse(d.class))}catch(e){}
+      try{if(d.scr)Object.assign(next,JSON.parse(d.scr))}catch(e){}
+      const s=JSON.stringify(next); if(s!==store.get(CLS)) store.set(CLS,s);
+      if(d.class) pushed.c=d.class; if(d.scr) pushed.s=d.scr;
+    }
+    if(!$('#s-teacher').hidden) teacherOnRemote();
+  }catch(e){setConn(false)}
+}
+function startSync(){ if(!CLOUD||!ROOM||syncTimer) return; pull(); syncTimer=setInterval(pull,2000); }
+function teacherRoom(){   // 老師版 / 大螢幕：房間碼取自網址，或者上次記住嘅
+  if(!CLOUD) return;
+  if(!ROOM){const r=store.get('vb_room')||''; ROOM=ROOM_RE.test(r)?r:newRoomCode()}
+  store.set('vb_room',ROOM);
+}
+function pendingStudents(){
+  let list=[]; try{list=JSON.parse(store.get('vb_roster_v1')||'[]')}catch(e){}
+  return list.map(decodeCode).filter(o=>o&&!roster.some(s=>s.n===o.n));
+}
+function updateCount(){
+  const inprog=readLive().filter(l=>l.stage!=='done'&&!roster.some(s=>s.n===l.n)).length;
+  const pend=pendingStudents().length;
+  $('#t-count').textContent=`名單共 ${roster.length} 人${inprog?`　闖關中 ${inprog} 位`:''}${pend?`　⏳ ${pend} 位新結果未加入`:''}`;
+}
+function teacherOnRemote(){
+  if(!roster.length){   // 重新整理後由雲端還原名單同配對
+    const c=readClass();
+    if((c.roster||[]).length){roster=c.roster;pairs=c.pairs||[];expected=c.expected||0;if(c.W)Object.assign(W,c.W);syncSliders();$('#t-expected').value=expected||'';renderTeacher();return}
+  }
+  const pend=pendingStudents();
+  if(pend.length&&!pairs.length){pend.forEach(addStudent);renderTeacher();return}
+  const sig=pend.length+'|'+readLive().length+'|'+roster.length;
+  if(sig!==remoteSig){remoteSig=sig;updateCount()}
+}
+function syncSliders(){[['r','#w-r','#wv-r'],['t','#w-t','#wv-t'],['s','#w-s','#wv-s']].forEach(([k,i,v])=>{$(i).value=W[k];$(v).textContent=W[k]})}
+function renderRoomPanel(){
+  $('#t-nocloud').hidden=CLOUD; $('#t-room').hidden=!CLOUD;
+  if(!CLOUD) return;
+  $('#t-roomcode').textContent=ROOM; $('#t-joinurl').textContent=joinUrl(); drawQR($('#t-qr'),joinUrl(),170);
+}
+function setLive(stage,lv){
+  if(!S.nick) return;
+  const v={n:S.nick,a:S.avatar,stage,lv:lv||0,ts:Date.now()};
+  let o={}; try{o=JSON.parse(store.get(LIVE)||'{}')}catch(e){}
+  o[S.nick]=v; store.set(LIVE,JSON.stringify(o));
+  if(CLOUD&&ROOM) dbReq('PUT','live/'+keyOf(S.nick),v).catch(()=>{});
+}
+function addStudent(o){
+  roster=roster.filter(x=>x.n!==o.n); roster.push({...o,id:'s'+(Date.now().toString(36))+Math.random().toString(36).slice(2,6)});
+}
+function chem(p,q){
+  const lean=x=>x.N-x.C;
+  let role=clamp(Math.abs(lean(p)-lean(q)),0,90)/90*100;
+  if(p.role==='all'||q.role==='all') role=Math.min(100,role+20);
+  const g=Math.abs(p.T-q.T), tempo=g<=20?100:g<=40?75:g<=60?45:15;
+  const lo=Math.min(p.S,q.S), hi=Math.max(p.S,q.S);
+  const soc=hi<35?10:lo>75?55:(hi-lo>=30?100:75);
+  const shared=p.f.filter(x=>q.f.includes(x)).length;
+  const wsum=W.r+W.t+W.s||1;
+  return clamp((W.r*role+W.t*tempo+W.s*soc)/wsum+Math.min(10,shared*5));
+}
+function explain(p,q){
+  const out=[];
+  const dl=Math.abs((p.N-p.C)-(q.N-q.C));
+  const pr=ROLE[p.role],qr=ROLE[q.role];
+  if(dl>=30&&p.role!==q.role) out.push({k:'good',t:`角色互補：${pr.name} × ${qr.name}`});
+  else if(p.role==='all'||q.role==='all') out.push({k:'good',t:'有全能車長，可以彈性補位'});
+  else if(dl<15) out.push({k:'warn',t:'兩人強項相似，需要商量分工'});
+  const g=Math.abs(p.T-q.T);
+  if(g<=25) out.push({k:'good',t:'節奏相近，容易夾'});
+  else if(g>=50) out.push({k:'warn',t:'一快一穩，提醒要互相遷就'});
+  if(Math.max(p.S,q.S)<35) out.push({k:'warn',t:'兩位都較安靜，破冰時多引導'});
+  else if(Math.abs(p.S-q.S)>=30) out.push({k:'good',t:'一個健談一個安靜，溝通平衡'});
+  const sh=p.f.filter(x=>q.f.includes(x));
+  if(sh.length) out.push({k:'good',t:`共同興趣 ${sh.join(' ')} 可做開場話題`});
+  return out;
+}
+function autoPair(){
+  const rnd=mulberry32(seed*7919);
+  const byId=Object.fromEntries(roster.map(s=>[s.id,s]));
+  const locked=pairs.filter(p=>p.locked&&byId[p.a]&&(!p.b||byId[p.b]));
+  const used=new Set(); locked.forEach(p=>{used.add(p.a);if(p.b)used.add(p.b)});
+  let free=roster.filter(s=>!used.has(s.id)).map(s=>s.id);
+  if(free.length<1){pairs=locked;return}
+  const DUMMY='_';
+  if(free.length%2) free.push(DUMMY);
+  const val=(a,b)=>{
+    if(a===DUMMY||b===DUMMY){const o=byId[a===DUMMY?b:a];return 35+(o.role==='all'?25:o.role==='flex'?10:0)}
+    return chem(byId[a],byId[b]);
+  };
+  const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(rnd()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+  let best=null,bestV=-1;
+  for(let r=0;r<40;r++){
+    const arr=shuffle(free), P=[]; for(let i=0;i<arr.length;i+=2)P.push([arr[i],arr[i+1]]);
+    let improved=true,guard=0;
+    while(improved&&guard++<60){
+      improved=false;
+      for(let i=0;i<P.length;i++)for(let j=i+1;j<P.length;j++){
+        const [a,b]=P[i],[c,d]=P[j], cur=val(a,b)+val(c,d);
+        const o1=val(a,c)+val(b,d), o2=val(a,d)+val(b,c);
+        if(o1>cur+1e-9&&o1>=o2){P[i]=[a,c];P[j]=[b,d];improved=true}
+        else if(o2>cur+1e-9){P[i]=[a,d];P[j]=[b,c];improved=true}
+      }
+    }
+    const tot=P.reduce((s,[a,b])=>s+val(a,b),0);
+    if(tot>bestV){bestV=tot;best=P}
+  }
+  const fresh=best.map(([a,b])=>a===DUMMY?{a:b,b:null}:b===DUMMY?{a,b:null}:{a,b});
+  pairs=[...locked,...fresh.map(p=>({...p,locked:false}))];
+  sel=null;
+}
+
+function renderTeacher(){
+  syncClass();
+  updateCount();
+  // 概覽
+  if(!roster.length){ $('#t-overview').textContent='未有資料'; }
+  else{
+    const cnt={nav:0,code:0,all:0,flex:0}; roster.forEach(s=>cnt[s.role]++);
+    const n=roster.length;
+    $('#t-overview').innerHTML=`<div class="rolebar">${Object.keys(cnt).filter(k=>cnt[k]).map(k=>`<span style="background:${ROLE[k].color};width:${cnt[k]/n*100}%" title="${ROLE[k].name}">${ROLE[k].icon}${cnt[k]}</span>`).join('')}</div>
+      <div class="tagrow">${Object.keys(ROLE).map(k=>`<span class="tag">${ROLE[k].icon} ${ROLE[k].name} ${cnt[k]}`+'</span>').join('')}</div>
+      <p style="margin:6px 0 0">平均：領航 <b>${Math.round(avg(roster.map(s=>s.N)))}</b> · 編程 <b>${Math.round(avg(roster.map(s=>s.C)))}</b> · 節奏 <b>${Math.round(avg(roster.map(s=>s.T)))}</b> · 健談 <b>${Math.round(avg(roster.map(s=>s.S)))}</b></p>
+      <p class="muted" style="margin:6px 0 0">${cnt.nav>cnt.code+cnt.all+2?'領航員比較多，部分同學可能要試當程式員。':cnt.code>cnt.nav+cnt.all+2?'程式機師比較多，部分同學可能要試當領航員。':'角色分佈平均，容易配對。'}${n%2?' 人數單數，會有一位「機動隊員」。':''}</p>`;
+  }
+  // 名單表
+  const bar=(v,c)=>`<span class="bar ${c}"><i style="width:${v}%"></i></span>`;
+  $('#t-table').innerHTML=roster.length
+    ? `<tr><th>同學</th><th>類型</th><th>領航</th><th>編程</th><th>節奏</th><th>健談</th></tr>`+roster.map(s=>`<tr><td><span class="nm">${signSVG(s.a,26)}${esc(s.n)} ${esc(s.f.join(''))}</span></td><td>${ROLE[s.role].icon} ${ROLE[s.role].name}</td><td>${bar(s.N,'')}</td><td>${bar(s.C,'c')}</td><td>${bar(s.T,'t')}</td><td>${bar(s.S,'s')}</td></tr>`).join('')
+    : '';
+  renderPairs();
+}
+function renderPairs(){
+  const byId=Object.fromEntries(roster.map(s=>[s.id,s]));
+  if(!pairs.length){$('#t-pairs').textContent='未配對';return}
+  const chip=(s,i,slot)=>{
+    if(!s) return `<div class="pchip" style="opacity:.6">🔁 機動隊員<br><span class="muted">可補位或組成三人組</span></div>`;
+    const on=sel&&sel.i===i&&sel.slot===slot;
+    return `<button class="pchip ${on?'sel':''}" data-i="${i}" data-slot="${slot}"><span class="n">${signSVG(s.a,26)}<b>${esc(s.n)}</b></span>${ROLE[s.role].icon} ${ROLE[s.role].name}<br>${tempoTag(s.T)} · ${socialTag(s.S)}</button>`;
+  };
+  $('#t-pairs').className='pairs';
+  $('#t-pairs').innerHTML=pairs.map((p,i)=>{
+    const A=byId[p.a],B=p.b?byId[p.b]:null;
+    const c=B?Math.round(chem(A,B)):null;
+    const why=B?explain(A,B):[{k:'good',t:A.role==='all'?'全能車長，適合機動補位':'人數單數，建議安排三人組或助教補位'}];
+    return `<div class="pair ${p.locked?'locked':''}"><div class="pair-h"><b>#${i+1}</b>${c!==null?`<span class="score ${c<50?'low':c<70?'mid':''}">默契 ${c}%</span>`:''}<button class="lockbtn" data-lock="${i}" title="鎖定/解鎖">${p.locked?'🔒':'🔓'}</button></div>
+      <div class="pair-body">${chip(A,i,'a')}${chip(B,i,'b')}</div>
+      <div class="why">${why.map(w=>`<span class="${w.k}">${esc(w.t)}</span>`).join('')}</div></div>`;
+  }).join('');
+}
+function teacherInit(){
+  $('#t-add').onclick=()=>{
+    const lines=$('#t-paste').value.split(/\n+/); let ok=0,bad=0;
+    lines.forEach(l=>{if(!l.trim())return;const o=decodeCode(l);if(o){addStudent(o);ok++}else bad++});
+    $('#t-paste').value=''; toast(`加入 ${ok} 位${bad?`，${bad} 行無法讀取`:''}`); pairs=[]; renderTeacher();
+  };
+  $('#t-local').onclick=()=>{
+    let list=[]; try{list=JSON.parse(store.get('vb_roster_v1')||'[]')}catch(e){}
+    let ok=0; list.forEach(c=>{const o=decodeCode(c);if(o){addStudent(o);ok++}});
+    toast(`讀取 ${ok} 位`); pairs=[]; renderTeacher();
+  };
+  $('#t-demo').onclick=()=>{
+    const rnd=mulberry32(11);
+    const names=['阿樂','小晴','家豪','詠恩','子軒','曉彤','浩然','嘉怡','天佑','思穎','俊傑','芷晴','梓謙','栢賢','雅婷','諾軒','朗曦','凱晴','子朗','承軒','安琪','文浩','心悅','卓謙'];
+    roster=names.map((n,i)=>{
+      const g=i%3; // 0 領航型 1 編程型 2 混合
+      const r=(a,b)=>Math.round(a+rnd()*(b-a));
+      const o={n,a:SIGN_TYPES[i%6],N:g===0?r(62,90):g===1?r(20,48):r(45,70),C:g===1?r(62,90):g===0?r(20,48):r(45,70),T:r(15,90),S:r(15,90),
+        f:FAVS.map(x=>rnd()<.7?x.opts[Math.floor(rnd()*4)]:null).filter(Boolean)};
+      o.p=CARDS.map((_,k)=>{
+        const bias=[0,2,3].includes(k)?(o.N-o.C)/200:k===6?-(o.T-50)/100:[4,5].includes(k)?(o.S-50)/100:0;
+        return rnd()<0.5+bias?'a':'b';}).join('');
+      o.g={sc:r(0,3),fo:r(0,3),vi:r(0,4),ru:r(3,9),tm:r(90,380),rp:r(0,1),so:r(2,3)};
+      o.role=roleOf(o); return {...o,id:'d'+i};
+    });
+    pairs=[]; renderTeacher(); toast('已載入示範資料');
+  };
+  $('#t-clear').onclick=async()=>{
+    if(!confirm(CLOUD?'清空名單同配對？雲端房間內同學嘅結果同進度都會刪除。':'清空名單同配對？（同學本機記錄唔受影響）')) return;
+    if(CLOUD&&ROOM){try{await Promise.all([dbReq('DELETE','students'),dbReq('DELETE','live')])}catch(e){toast('雲端刪除失敗')}}
+    store.set('vb_roster_v1','[]'); store.set(LIVE,'{}');
+    roster=[];pairs=[];patchClass({reveal:0});renderTeacher();
+  };
+  $('#t-newroom').onclick=async()=>{
+    if(!confirm('開新房間？舊房間嘅資料會被刪除。')) return;
+    try{await dbReq('DELETE','')}catch(e){}
+    ROOM=newRoomCode(); store.set('vb_room',ROOM);
+    store.set(CLS,'{}'); store.set(LIVE,'{}'); store.set('vb_roster_v1','[]');
+    roster=[];pairs=[];expected=0;pushed={c:'',s:''};remoteSig='';
+    $('#t-expected').value=''; renderRoomPanel(); renderTeacher();
+  };
+  $('#t-delroom').onclick=async()=>{
+    if(!confirm('刪除呢個房間所有同學資料？（建議每堂完咗就刪）')) return;
+    try{await dbReq('DELETE','');toast('已刪除雲端資料')}catch(e){toast('刪除失敗，請檢查網絡');return}
+    store.set(CLS,'{}'); store.set(LIVE,'{}'); store.set('vb_roster_v1','[]');
+    roster=[];pairs=[];expected=0;pushed={c:'',s:''};remoteSig='';renderTeacher();
+  };
+  $('#t-copyurl').onclick=()=>{(navigator.clipboard?navigator.clipboard.writeText(joinUrl()):Promise.reject()).then(()=>toast('已複製加入連結'),()=>prompt('請手動複製',joinUrl()))};
+  const doPair=()=>{if(roster.length<2){toast('至少要有 2 位同學');return}autoPair();patchClass({reveal:0});renderTeacher()};
+  $('#t-expected').oninput=e=>{expected=Math.max(0,+e.target.value||0);syncClass()};
+  $('#t-wipe').hidden=CLOUD; $('#t-wipe').onclick=()=>{if(confirm('清除今部機上所有同學記錄同闖關進度？')){store.set('vb_roster_v1','[]');store.set(LIVE,'{}');renderTeacher();toast('已清除')}};
+  $('#t-screen').onclick=()=>{
+    syncClass();
+    const url=(CLOUD?joinUrl():location.href.split('#')[0])+'#screen';   // 帶房間碼，投影機電腦亦可以直接開
+    const w=window.open(url,'vb_screen'); if(!w)location.hash='screen';
+  };
+  $('#t-pair').onclick=()=>{seed=1;doPair()};
+  $('#t-reroll').onclick=()=>{seed++;doPair()};
+  [['r','#w-r','#wv-r'],['t','#w-t','#wv-t'],['s','#w-s','#wv-s']].forEach(([k,i,v])=>{
+    $(i).oninput=e=>{W[k]=+e.target.value;$(v).textContent=W[k];if(pairs.length)renderPairs()};
+  });
+  $('#t-pairs').onclick=e=>{
+    const lk=e.target.closest('[data-lock]');
+    if(lk){const p=pairs[+lk.dataset.lock];p.locked=!p.locked;renderPairs();return}
+    const c=e.target.closest('.pchip[data-i]'); if(!c) return;
+    const i=+c.dataset.i, slot=c.dataset.slot;
+    if(!sel){sel={i,slot};renderPairs();return}
+    if(sel.i===i&&sel.slot===slot){sel=null;renderPairs();return}
+    const P1=pairs[sel.i],P2=pairs[i];
+    if(P1.locked||P2.locked){toast('已鎖定嘅拍檔唔可以調動');sel=null;renderPairs();return}
+    const t=P1[sel.slot]; P1[sel.slot]=P2[slot]; P2[slot]=t;
+    pairs.forEach(p=>{if(!p.a&&p.b){p.a=p.b;p.b=null}});
+    sel=null; renderPairs();
+  };
+  $('#t-copylist').onclick=()=>{
+    const byId=Object.fromEntries(roster.map(s=>[s.id,s]));
+    const txt=pairs.map((p,i)=>`#${i+1}　${byId[p.a].n}${p.b?' + '+byId[p.b].n:'（機動）'}`).join('\n');
+    if(!txt){toast('未有配對');return}
+    (navigator.clipboard?navigator.clipboard.writeText(txt):Promise.reject()).then(()=>toast('已複製名單'),()=>{prompt('請手動複製',txt)});
+  };
+  $('#t-csv').onclick=()=>{
+    if(!pairs.length){toast('未有配對');return}
+    const byId=Object.fromEntries(roster.map(s=>[s.id,s]));
+    const rows=[['拍檔編號','暱稱','類型','領航','編程','節奏','健談','拍檔']];
+    pairs.forEach((p,i)=>[[p.a,p.b],[p.b,p.a]].forEach(([x,y])=>{if(!x)return;const s=byId[x];rows.push([i+1,s.n,ROLE[s.role].name,s.N,s.C,s.T,s.S,y?byId[y].n:'']);}));
+    const csv='﻿'+rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'})); a.download='拍檔配對.csv'; a.click();
+  };
+  $('#t-print').onclick=printCards;
+  $('#t-exit').onclick=()=>{location.hash='';show('s-welcome')};
+}
+
+/* 列印拍檔卡：每對共用一個標誌，各執一半 */
+const PCOL=['#e11d48','#2563eb','#16a34a','#d97706','#7c3aed','#0891b2','#db2777','#4b5563'];
+const HANDSHAKE=[
+  '你最鍾意邊個交通標誌？點解？','如果 VinciBot 識講嘢，佢第一句會講咩？','各自介紹一件你最叻嘅嘢',
+  '交通標誌接龍：你一個、我一個，睇邊個講得多','講一件你喺馬路上見過最有趣嘅事','一齊幫你哋嘅機械人改個隊名',
+  '預測：8 分鐘內邊個任務最難？點解？','一齊創作一個勝利手勢或口號'
+];
+function printCards(){
+  if(!pairs.length){toast('請先配對');return}
+  const byId=Object.fromEntries(roster.map(s=>[s.id,s]));
+  let h='<div class="cards">', uid=0;
+  pairs.forEach((p,i)=>{
+    const type=SIGN_TYPES[i%6], col=PCOL[Math.floor(i/6)%PCOL.length];
+    const rnd=mulberry32(i+3), qs=[...HANDSHAKE].sort(()=>rnd()-.5).slice(0,3);
+    [['a','L'],['b','R']].forEach(([slot,side])=>{
+      const s=p[slot]?byId[p[slot]]:null;
+      if(slot==='b'&&!s) return;
+      const half=p.b?halfSignSVG(type,side,++uid):`<svg viewBox="0 0 100 100">${SIGN_INNER[type]}</svg>`;
+      h+=`<div class="card" style="border-color:${col}"><div class="no" style="color:${col}">#${i+1}</div>
+        <div class="half">${half}</div>
+        <div class="nick">${signSVG(s.a,34)} ${esc(s.n)}</div>
+        <div class="fav">${esc(s.f.join(' ')||'🚗')}</div>
+        <div class="hint">${p.b?'🔍 請搵持有「另一半標誌」嘅同學，一齊坐低！':'🔁 你係機動隊員：搵老師指示補位。'}</div>
+        ${p.b?`<b style="font-size:10pt">握手 3 問：</b><ol class="qs">${qs.map(q=>`<li>${esc(q)}</li>`).join('')}</ol>`:''}
+      </div>`;
+    });
+  });
+  h+='</div>';
+  $('#print-root').innerHTML=h;
+  setTimeout(()=>window.print(),100);
+}
+
+/* ================= 入口 ================= */
+function openTeacher(){
+  let ok=false; try{ok=sessionStorage.getItem('vb_t')==='1'}catch(e){}
+  if(!ok){
+    const p=prompt('請輸入老師密碼');
+    if(p!==PIN){if(p!==null)alert('密碼不正確');location.hash='';return}
+    try{sessionStorage.setItem('vb_t','1')}catch(e){}
+  }
+  const c=readClass();
+  if(!roster.length&&(c.roster||[]).length){roster=c.roster;pairs=c.pairs||[];expected=c.expected||0;if(c.W)Object.assign(W,c.W)}
+  $('#t-expected').value=expected||'';
+  [['r','#w-r','#wv-r'],['t','#w-t','#wv-t'],['s','#w-s','#wv-s']].forEach(([k,i,v])=>{$(i).value=W[k];$(v).textContent=W[k]});
+  teacherRoom(); show('s-teacher'); renderRoomPanel(); renderTeacher(); startSync();
+}
+
+/* ================= 課堂大螢幕 ================= */
+function allStudents(){
+  const m=new Map(); let local=[];
+  try{local=JSON.parse(store.get('vb_roster_v1')||'[]')}catch(e){}
+  local.forEach(x=>{const o=decodeCode(x);if(o)m.set(o.n,o)});
+  (readClass().roster||[]).forEach(s=>m.set(s.n,s));
+  return [...m.values()];
+}
+const chemLabel=c=>c>=85?'💯 絕配':c>=70?'🌟 好拍檔':'🌱 潛力組合';
+function kidWhy(A,B){
+  const out=[];
+  const nav=[A,B].find(x=>x.role==='nav'), cod=[A,B].find(x=>x.role==='code'), all=[A,B].find(x=>x.role==='all');
+  if(nav&&cod) out.push(`🔭 ${nav.n} 識睇路、報距離，💻 ${cod.n} 砌程式又快又準 → 絕配！`);
+  else if(all) out.push(`🧰 ${all.n} 係全能車長，隨時可以補位`);
+  else out.push('🔄 你哋強項差唔多，可以輪流做領航同程式員');
+  const sh=A.f.filter(x=>B.f.includes(x));
+  if(sh.length) out.push(`${sh.join(' ')} 你哋都鍾意！可以由呢個話題開始傾`);
+  const gap=Math.abs(A.T-B.T);
+  if(gap<=25) out.push('⏱ 你哋節奏差唔多，合作會好順');
+  else if(gap>=50) out.push('🐢🐇 一個穩陣一個快，可以互相提醒');
+  if(Math.abs(A.S-B.S)>=30) out.push('🎤 一個健談一個文靜，傾偈唔會冷場');
+  else if(Math.max(A.S,B.S)<35) out.push('🤫 兩位都文靜，可以用手勢同紙筆幫手溝通');
+  return out.slice(0,3);
+}
+function scr0(c,stu){
+  if(!CLOUD) return '';
+  const names=new Set(stu.map(s=>s.n)); readLive().forEach(l=>names.add(l.n));
+  return `<div class="join"><div id="scr-qr" class="qrbox"></div><div>
+    <div style="font-size:32px;font-weight:800">📱 用平板 / 手機掃 QR 加入</div>
+    <div class="roomcode">${esc(ROOM)}</div>
+    <div class="muted" style="word-break:break-all;max-width:520px">${esc(joinUrl())}</div>
+    <div class="big-num" style="margin-top:14px">👋 ${names.size}<small>位已加入</small></div></div></div>`;
+}
+const bubble=(a,n,tag,cls)=>`<div class="bubble ${cls}"><div class="bav">${a?signSVG(a,46):'🚗'}</div><b>${esc(n)}</b><span>${tag}</span></div>`;
+function scr1(c,stu){
+  const live=readLive().filter(l=>l.stage!=='done'&&!stu.some(s=>s.n===l.n));
+  const done=stu.length, exp=c.expected||done+live.length, pct=exp?Math.min(100,done/exp*100):0;
+  const holes=Math.max(0,exp-done-live.length);
+  let h=`<div class="big-num">✅ ${done}<small>/ ${exp||'?'} 位已完成</small></div><div class="pbar"><i style="width:${pct}%"></i></div><div class="bubbles">`;
+  stu.forEach(s=>h+=bubble(s.a,s.n,`${ROLE[s.role].icon} ${ROLE[s.role].name}`,'done'));
+  live.forEach(l=>h+=bubble(l.a,l.n,l.stage==='cards'?'📝 答緊題':`🚧 第 ${l.lv} 關`,'prog'));
+  for(let i=0;i<holes;i++) h+=`<div class="bubble ghost"><div class="bav">❓</div><b>等緊…</b></div>`;
+  h+='</div>';
+  if(exp&&done>=exp) h+='<div class="cheer">🎉 全班完成！一齊睇大家嘅有趣答案</div>';
+  else if(exp) h+=`<div class="cheer" style="color:var(--purple)">仲有 ${exp-done} 位，加油！💪</div>`;
+  return h;
+}
+function awardList(stu){
+  const out=[], g=stu.filter(s=>s.g), done3=g.filter(s=>s.g.so>=3);
+  const maxBy=(arr,f)=>{if(!arr.length)return[];const m=Math.max(...arr.map(f));return m>0?arr.filter(s=>f(s)===m):[]};
+  const add=(ic,label,arr,note)=>{if(arr.length)out.push({ic,label,note,names:arr.slice(0,3).map(s=>s.n).join('、')+(arr.length>3?` 等 ${arr.length} 位`:'')})};
+  if(done3.length){const m=Math.min(...done3.map(s=>s.g.tm));const f=done3.filter(s=>s.g.tm===m);add('🏎','最快完賽',f,`${m} 秒過晒 3 關`)}
+  add('👀','掃描之王',maxBy(g,s=>s.g.sc),'出發前先睇清楚');
+  add('🎯','一擊即中',maxBy(g,s=>s.g.fo),'一次過成功');
+  add('😇','規矩司機',done3.filter(s=>s.g.vi===0),'全程零違規');
+  add('🔁','迴圈高手',g.filter(s=>s.g.rp>0),'識用重複積木');
+  add('🔭','最強領航',maxBy(stu,s=>s.N),'觀察力 MAX');
+  add('💻','最強編程',maxBy(stu,s=>s.C),'手快腦靈');
+  add('🎤','最健談',maxBy(stu,s=>s.S),'氣氛擔當');
+  return out;
+}
+function scr2(c,stu){
+  if(!stu.length) return '<div class="cheer">仲未有同學完成，等等先！</div>';
+  const withP=stu.filter(s=>s.p&&s.p.length===CARDS.length);
+  let h='<h3>🏅 今日獎項</h3><div class="awards">'+awardList(stu).map(a=>`<div class="award"><div class="ic">${a.ic}</div><b>${a.label}</b><div class="nm2">${esc(a.names)}</div><small>${esc(a.note)}</small></div>`).join('')+'</div>';
+  const fast=stu.filter(s=>s.T>=62).length, slow=stu.filter(s=>s.T<=38).length;
+  const fav=FAVS.map(gp=>{const m={};stu.forEach(s=>s.f.forEach(e=>{if(gp.opts.includes(e))m[e]=(m[e]||0)+1}));const t=Object.entries(m).sort((a,b)=>b[1]-a[1])[0];return t?`${gp.label}：<b>${t[0]}</b> ${t[1]} 人`:null}).filter(Boolean);
+  h+=`<h3>💖 全班熱話</h3><p style="margin:4px 0 18px">🐇 速度型 <b>${fast}</b> 位 · 🐢 穩陣型 <b>${slow}</b> 位${fav.length?'　｜　最受歡迎 → '+fav.join('　'):''}</p>`;
+  if(withP.length){
+    h+=`<h3>🗳 全班投票（${withP.length} 人）</h3><div class="votes">`+CARDS.map((q,i)=>{
+      let a=0,b=0; withP.forEach(s=>s.p[i]==='a'?a++:b++);
+      const t=a+b||1, pa=Math.round(a/t*100);
+      return `<div class="vote"><div class="vq">${esc(q.q)}</div><div class="vbar"><i style="width:${pa}%"></i></div><div class="vl"><span>${esc(q.a.t)} <b>${pa}%</b></span><span><b>${100-pa}%</b> ${esc(q.b.t)}</span></div></div>`;
+    }).join('')+'</div>';
+  }
+  return h;
+}
+function scr3(c){
+  const R=c.roster||[], P=c.pairs||[]; Object.assign(W,c.W||{});
+  const byId=Object.fromEntries(R.map(s=>[s.id,s]));
+  if(!P.length) return '<div class="cheer">老師仲未配對，請先喺老師版按「自動配對」</div>';
+  const rv=Math.min(c.reveal||0,P.length);
+  const who=s=>`<div class="who"><span class="nm">${signSVG(s.a,52)} ${esc(s.n)}</span><div>${ROLE[s.role].icon} ${ROLE[s.role].name} · ${tempoTag(s.T)}</div></div>`;
+  let h='';
+  if(rv===0) h+=`<div class="spot"><h2>🥁 準備好未？睇睇你嘅拍檔係邊個！</h2><button class="go bigbtn" data-act="next">🎬 揭曉第 1 對</button></div>`;
+  else{
+    const p=P[rv-1], A=byId[p.a], B=p.b?byId[p.b]:null;
+    const why=B?kidWhy(A,B):['🔁 人數單數，你係機動隊員，隨時補位！'];
+    h+=`<div class="spot"><h2>🎉 第 ${rv} 對 ${B?chemLabel(chem(A,B)):''}</h2><div class="duo">${who(A)}${B?`<span class="plus">🤝</span>${who(B)}`:'<span class="plus">🔁</span><div class="who"><b>機動隊員</b></div>'}</div><ul>${why.map(t=>`<li>${esc(t)}</li>`).join('')}</ul>${rv<P.length?`<button class="go bigbtn" style="margin-top:12px" data-act="next">🎬 揭曉第 ${rv+1} 對</button>`:'<div class="cheer">🎊 全部揭曉！去搵你嘅拍檔啦</div>'}</div>`;
+  }
+  h+='<div class="mini-pairs">'+P.map((p,i)=>{
+    if(i>=rv-1) return i===rv-1?'':`<div class="mini hid">#${i+1} ❓ 🤝 ❓</div>`;
+    const A=byId[p.a],B=p.b?byId[p.b]:null;
+    return `<div class="mini"><b>#${i+1}</b> ${signSVG(A.a,22)} ${esc(A.n)}${B?` 🤝 ${signSVG(B.a,22)} ${esc(B.n)}`:' 🔁 機動'}<small>${esc((B?kidWhy(A,B):['機動隊員'])[0])}</small></div>`;
+  }).join('')+'</div>';
+  h+='<div class="toolbar"><button class="orange" data-act="all">⚡ 全部揭曉</button><button class="ghost" data-act="reset">↺ 重新揭曉</button></div>';
+  return h;
+}
+function scr4(c){
+  const R=c.roster||[], P=c.pairs||[], byId=Object.fromEntries(R.map(s=>[s.id,s]));
+  const rnd=mulberry32(5), qs=[...HANDSHAKE].sort(()=>rnd()-.5).slice(0,3);
+  let h=`<div class="hs"><b>🤝 握手任務：搵到拍檔，一齊完成</b><ol>${qs.map(q=>`<li>${esc(q)}</li>`).join('')}</ol><div>✅ 完成後兩個人一齊舉手，再諗一個隊名！</div></div>`;
+  if(P.length) h+='<h3 style="margin-top:16px">📋 拍檔名單</h3><div class="mini-pairs">'+P.map((p,i)=>{
+    const A=byId[p.a],B=p.b?byId[p.b]:null;
+    return `<div class="mini"><b>#${i+1}</b> ${signSVG(A.a,22)} ${esc(A.n)}${B?` 🤝 ${signSVG(B.a,22)} ${esc(B.n)}`:' 🔁 機動'}</div>`;
+  }).join('')+'</div>';
+  return h;
+}
+let scrSig='';
+function renderScreen(force){
+  const sig=[store.get(CLS),store.get(LIVE),store.get('vb_roster_v1')].join('|');
+  if(!force&&sig===scrSig) return; scrSig=sig;
+  const c=readClass(), step=curStep(c);
+  $$('.scr-tab').forEach(b=>b.classList.toggle('on',+b.dataset.go===step));
+  $('#scr-body').innerHTML=[scr0,scr1,scr2,scr3,scr4][step](c,allStudents());
+  if(step===0&&CLOUD) drawQR($('#scr-qr'),joinUrl(),300);
+  renderTimer();
+}
+const curStep=c=>(typeof c.step==='number')?c.step:(CLOUD?0:1);
+function renderTimer(){
+  const t=readClass().timer, el=$('#scr-timer');
+  if(!t||!t.endAt){el.textContent='⏱ --:--';el.className='';return}
+  const left=Math.ceil((t.endAt-Date.now())/1000);
+  if(left<=0){el.textContent='⏰ 時間到！';el.className='over';return}
+  el.textContent=`⏱ ${String(Math.floor(left/60)).padStart(2,'0')}:${String(left%60).padStart(2,'0')}`;
+  el.className=left<=60?'warn':'';
+}
+function screenInit(){
+  $('.scr-tab[data-go="0"]').hidden=!CLOUD;
+  const go=o=>{patchClass(o);renderScreen(true)};
+  $('#s-screen').addEventListener('click',e=>{
+    const t=e.target.closest('button'); if(!t) return;
+    const c=readClass(), n=(c.pairs||[]).length, d=t.dataset;
+    if(d.go) go({step:+d.go});
+    else if(d.step) go({step:clamp(curStep(c)+ +d.step,CLOUD?0:1,4)});
+    else if(d.act==='next') go({reveal:Math.min((c.reveal||0)+1,n)});
+    else if(d.act==='all') go({reveal:n});
+    else if(d.act==='reset') go({reveal:0});
+    else if(d.timer!==undefined){const m=+d.timer;go({timer:m?{endAt:Date.now()+m*60000,mins:m}:null})}
+    else if(t.id==='scr-back') location.hash='teacher';
+  });
+  document.addEventListener('keydown',e=>{
+    if($('#s-screen').hidden) return;
+    const c=readClass(), st=curStep(c), lo=CLOUD?0:1;
+    if(e.key==='ArrowRight') go({step:clamp(st+1,lo,4)});
+    else if(e.key==='ArrowLeft') go({step:clamp(st-1,lo,4)});
+    else if((e.key===' '||e.key==='Enter')&&st===3){e.preventDefault();go({reveal:Math.min((c.reveal||0)+1,(c.pairs||[]).length)})}
+  });
+  setInterval(()=>{if($('#s-screen').hidden)return;renderTimer();renderScreen(false)},700);
+}
+function route(){
+  if(location.hash==='#teacher') openTeacher();
+  else if(location.hash==='#screen'){teacherRoom();show('s-screen');renderScreen(true);startSync()}
+}
+
+initWelcome(); teacherInit(); screenInit();
+$('#btn-scan').onclick=doScan; $('#btn-run').onclick=doRun;
+$('#btn-reset').onclick=()=>{if(!S.running){resetCar()}};
+$('#btn-clear').onclick=()=>{if(ws&&!S.running){ws.clear();Blockly.serialization.workspaces.load(startState(),ws)}};
+$('#btn-next').onclick=nextLevel; $('#btn-skip').onclick=skipLevel;
+$('#btn-copy').onclick=()=>{const t=$('#res-code').value;
+  (navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>toast('已複製結果碼'),()=>{$('#res-code').select();document.execCommand('copy');toast('已複製結果碼')})};
+$('#btn-retry').onclick=()=>submitResult();
+$('#btn-again').onclick=()=>{S.nick='';S.avatar=null;S.favs={};$('#nick').value='';$$('.av,.chip-btn').forEach(x=>x.classList.remove('on'));$('#btn-start').disabled=true;show('s-welcome')};
+$('#lnk-teacher').onclick=e=>{e.preventDefault();location.hash='teacher';openTeacher()};
+window.addEventListener('hashchange',route); route();
+
+window.__VB={LEVELS,simulate,roleOf,computeProfile,behaviour,chem,autoPair,get roster(){return roster},get pairs(){return pairs},S};
+})();
+</script>
+</body>
+</html>
