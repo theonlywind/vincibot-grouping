@@ -410,6 +410,12 @@ window.VB_CONFIG={dbUrl:'https://vincibot-grouping-default-rtdb.asia-southeast1.
 
   <div class="panel">
     <h2>學生名單</h2>
+    <div class="toolbar">
+      <button id="t-export">⬇ 匯出名單 CSV</button>
+      <button class="ghost" id="t-import">⬆ 匯入 CSV</button>
+      <input type="file" id="t-file" accept=".csv,text/csv" hidden>
+      <span class="muted" style="align-self:center">匯出後可用 Excel 修改暱稱、分數，再匯入（會取代現有名單）</span>
+    </div>
     <div style="overflow-x:auto"><table class="roster" id="t-table"></table></div>
   </div>
   <div class="toolbar"><button class="ghost" id="t-exit">← 返回學生版</button></div>
@@ -1205,7 +1211,61 @@ function teacherInit(){
     const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'})); a.download='拍檔配對.csv'; a.click();
   };
   $('#t-print').onclick=printCards;
+  $('#t-export').onclick=()=>{
+    if(!roster.length){toast('名單係空嘅');return}
+    const head=['暱稱','標誌(stop/limit/parking/noEntry/noLeft/headlight)','領航N','編程C','節奏T','健談S','興趣','答案p','掃描sc','一擊fo','違規vi','嘗試ru','秒tm','重複rp','過關so'];
+    const rows=roster.map(s=>{const g=s.g||{};return [s.n,s.a,s.N,s.C,s.T,s.S,s.f.join(''),s.p||'',g.sc||0,g.fo||0,g.vi||0,g.ru||0,g.tm||0,g.rp||0,g.so||0]});
+    downloadText('同學資料.csv',toCsv([head,...rows]));
+  };
+  $('#t-import').onclick=()=>$('#t-file').click();
+  $('#t-file').onchange=async e=>{
+    const f=e.target.files[0]; e.target.value=''; if(!f) return;
+    const list=parseStudentsCsv(await f.text());
+    if(!list.length){toast('讀唔到任何同學，請檢查格式');return}
+    if(!confirm(`匯入 ${list.length} 位同學？會取代現有名單，配對要重新做。`)) return;
+    await importRoster(list);
+  };
   $('#t-exit').onclick=()=>{location.hash='';show('s-welcome')};
+}
+
+/* 名單匯出 / 匯入（CSV） */
+function toCsv(rows){return '\ufeff'+rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n')}
+function downloadText(name,text){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type:'text/csv'}));a.download=name;a.click()}
+function parseCsv(text){
+  text=text.replace(/^\ufeff/,''); const rows=[]; let row=[],cur='',q=false;
+  for(let i=0;i<text.length;i++){
+    const ch=text[i];
+    if(q){if(ch==='"'){if(text[i+1]==='"'){cur+='"';i++}else q=false}else cur+=ch}
+    else if(ch==='"') q=true;
+    else if(ch===','){row.push(cur);cur=''}
+    else if(ch==='\n'||ch==='\r'){if(ch==='\r'&&text[i+1]==='\n')i++;row.push(cur);cur='';rows.push(row);row=[]}
+    else cur+=ch;
+  }
+  if(cur!==''||row.length){row.push(cur);rows.push(row)}
+  return rows.filter(r=>r.some(c=>c.trim()!==''));
+}
+function parseStudentsCsv(text){
+  const num=(v,d=50)=>{const x=parseFloat(v);return Number.isFinite(x)?clamp(Math.round(x)):d};
+  const m=new Map();
+  for(const r of parseCsv(text).slice(1)){
+    const n=(r[0]||'').trim().slice(0,12); if(!n) continue;
+    const a=(r[1]||'').trim();
+    const o={n,a:SIGN_TYPES.includes(a)?a:'stop',N:num(r[2]),C:num(r[3]),T:num(r[4]),S:num(r[5]),
+      f:Array.from((r[6]||'').replace(/\s/g,'')).slice(0,3),p:(r[7]||'').trim(),
+      g:{sc:+r[8]||0,fo:+r[9]||0,vi:+r[10]||0,ru:+r[11]||0,tm:+r[12]||0,rp:+r[13]||0,so:+r[14]||0}};
+    o.role=roleOf(o); m.set(n,o);
+  }
+  return [...m.values()];
+}
+async function importRoster(list){
+  roster=list.map((o,i)=>({...o,id:'i'+Date.now().toString(36)+i})); pairs=[]; patchClass({reveal:0});
+  if(CLOUD&&ROOM){   // 雲端同步改動，否則舊結果會再被自動加入
+    try{
+      await dbReq('DELETE','students');
+      await Promise.all(list.map(o=>dbReq('PUT','students/'+keyOf(o.n),encodeCode({n:o.n,a:o.a,N:o.N,C:o.C,T:o.T,S:o.S,f:o.f,p:o.p,g:o.g}))));
+    }catch(e){toast('雲端更新失敗，改動只留喺今部機')}
+  }
+  renderTeacher(); toast(`已匯入 ${list.length} 位`);
 }
 
 /* 列印拍檔卡：每對共用一個標誌，各執一半 */
@@ -1431,7 +1491,7 @@ $('#btn-again').onclick=()=>{S.nick='';S.avatar=null;S.favs={};$('#nick').value=
 $('#lnk-teacher').onclick=e=>{e.preventDefault();location.hash='teacher';openTeacher()};
 window.addEventListener('hashchange',route); route();
 
-window.__VB={LEVELS,simulate,roleOf,computeProfile,behaviour,chem,autoPair,get roster(){return roster},get pairs(){return pairs},S};
+window.__VB={parseStudentsCsv,LEVELS,simulate,roleOf,computeProfile,behaviour,chem,autoPair,get roster(){return roster},get pairs(){return pairs},S};
 })();
 </script>
 </body>
