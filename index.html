@@ -307,8 +307,8 @@ window.VB_CONFIG={dbUrl:'https://vincibot-grouping-default-rtdb.asia-southeast1.
     <summary>📖 30 分鐘課堂流程（配合「課堂大螢幕」）</summary>
     <ol>
       <li><b>0–3 分鐘 開場</b>：簡介比賽（2 人一隊、8 分鐘、4 項任務），講明今日要「揾拍檔」。大螢幕停喺 ⓪，同學掃 QR 加入。</li>
-      <li><b>3–15 分鐘 闖關</b>：大螢幕按「闖關 12 分鐘」計時；同學玩 3 關，完成後交結果碼。①睇進度，催未完成嘅同學。</li>
-      <li><b>15–18 分鐘 老師配對</b>：貼結果碼 → 自動配對 → 微調。同時大螢幕轉去 ②，同學睇全班投票同獎項。</li>
+      <li><b>3–15 分鐘 闖關</b>：大螢幕按「闖關 12 分鐘」計時；同學玩 3 關，完成後結果自動出現。①睇進度，催未完成嘅同學。</li>
+      <li><b>15–18 分鐘 老師配對</b>：按「自動配對」→ 微調。同時大螢幕轉去 ②，同學睇全班投票同獎項。</li>
       <li><b>18–23 分鐘 揭曉</b>：大螢幕轉去 ③，逐對揭曉，每對讀出分組原因。</li>
       <li><b>23–30 分鐘 握手任務</b>：轉去 ④，同學搵到拍檔，完成 3 條破冰題（按「握手 6 分鐘」計時），再諗隊名。</li>
     </ol>
@@ -331,7 +331,7 @@ window.VB_CONFIG={dbUrl:'https://vincibot-grouping-default-rtdb.asia-southeast1.
         </div>
       </div>
     </div>
-    <p class="muted" style="margin:8px 0 0">同學掃 QR（或者打開連結） → 輸入暱稱 → 玩完自動交結果。結果會自動加入下面名單；已經配對後，新結果會等你確認。</p>
+    <p class="muted" style="margin:8px 0 0">同學掃 QR（或者打開連結） → 輸入暱稱 → 玩完自動交結果。結果會自動加入下面名單；配對後先完成嘅同學會提示「未配對」，再按一次自動配對就得。</p>
   </div>
   <div class="panel" id="t-nocloud" hidden>
     <h2>單機模式</h2>
@@ -339,11 +339,18 @@ window.VB_CONFIG={dbUrl:'https://vincibot-grouping-default-rtdb.asia-southeast1.
   </div>
 
   <div class="panel">
-    <h2>① 收集同學結果</h2>
-    <textarea id="t-paste" rows="3" placeholder="將同學嘅結果碼貼喺度（一行一個，可以一次貼好多個）"></textarea>
+    <h2>① 同學進度（自動收集）</h2>
+    <div id="t-live" class="tagrow" style="min-height:34px"><span class="muted">等同學加入…</span></div>
+    <div id="t-unpaired"></div>
+    <details id="t-manual">
+      <summary style="font-size:17px">📮 備用：手動貼結果碼 / 同機記錄</summary>
+      <textarea id="t-paste" rows="3" placeholder="將同學嘅結果碼貼喺度（一行一個，可以一次貼好多個）"></textarea>
+      <div class="toolbar">
+        <button class="go" id="t-add">➕ 加入名單</button>
+        <button id="t-local">📥 加入新結果</button>
+      </div>
+    </details>
     <div class="toolbar">
-      <button class="go" id="t-add">➕ 加入名單</button>
-      <button id="t-local">📥 加入新結果</button>
       <button class="orange" id="t-demo">🧪 載入示範 24 人</button>
       <button class="ghost" id="t-clear">清空名單</button>
       <button class="ghost" id="t-wipe">🧹 清除今部機記錄</button>
@@ -954,9 +961,18 @@ function pendingStudents(){
   return list.map(decodeCode).filter(o=>o&&!roster.some(s=>s.n===o.n));
 }
 function updateCount(){
-  const inprog=readLive().filter(l=>l.stage!=='done'&&!roster.some(s=>s.n===l.n)).length;
+  const inprog=readLive().filter(l=>l.stage!=='done'&&!roster.some(s=>s.n===l.n));
   const pend=pendingStudents().length;
-  $('#t-count').textContent=`名單共 ${roster.length} 人${inprog?`　闖關中 ${inprog} 位`:''}${pend?`　⏳ ${pend} 位新結果未加入`:''}`;
+  $('#t-count').textContent=`名單共 ${roster.length} 人${inprog.length?`　闖關中 ${inprog.length} 位`:''}${pend?`　⏳ ${pend} 位新結果未加入`:''}`;
+  const chip=(l,css)=>`<span class="tag" style="${css}">${l.a?signSVG(l.a,18):''} ${esc(l.n)} ${l.tag}</span>`;
+  const chips=[
+    ...inprog.map(l=>chip({...l,tag:l.stage==='cards'?'📝 答題中':`🚧 第 ${l.lv} 關`},'border-color:var(--orange)')),
+    ...roster.map(s=>chip({...s,tag:'✅'},'border-color:var(--green);background:#eafaf0'))
+  ];
+  $('#t-live').innerHTML=chips.length?chips.join(''):'<span class="muted">等同學加入…</span>';
+  const un=roster.filter(s=>!pairs.some(p=>p.a===s.id||p.b===s.id));
+  $('#t-unpaired').innerHTML=(pairs.length&&un.length)
+    ?`<div class="msg bad" style="min-height:0;margin:6px 0">⚠ 有 ${un.length} 位新同學未配對（${un.map(s=>esc(s.n)).join('、')}）→ 按「自動配對」（🔒 鎖定嘅拍檔唔會變）</div>`:'';
 }
 function teacherOnRemote(){
   if(!roster.length){   // 重新整理後由雲端還原名單同配對
@@ -964,12 +980,13 @@ function teacherOnRemote(){
     if((c.roster||[]).length){roster=c.roster;pairs=c.pairs||[];expected=c.expected||0;if(c.W)Object.assign(W,c.W);syncSliders();$('#t-expected').value=expected||'';renderTeacher();return}
   }
   const pend=pendingStudents();
-  if(pend.length&&!pairs.length){pend.forEach(addStudent);renderTeacher();return}
-  const sig=pend.length+'|'+readLive().length+'|'+roster.length;
+  if(pend.length){pend.forEach(addStudent);renderTeacher();return}
+  const sig=store.get(LIVE)+'|'+roster.length+'|'+pairs.length;
   if(sig!==remoteSig){remoteSig=sig;updateCount()}
 }
 function syncSliders(){[['r','#w-r','#wv-r'],['t','#w-t','#wv-t'],['s','#w-s','#wv-s']].forEach(([k,i,v])=>{$(i).value=W[k];$(v).textContent=W[k]})}
 function renderRoomPanel(){
+  $('#t-manual').open=!CLOUD;
   $('#t-nocloud').hidden=CLOUD; $('#t-room').hidden=!CLOUD;
   if(!CLOUD) return;
   $('#t-roomcode').textContent=ROOM; $('#t-joinurl').textContent=joinUrl(); drawQR($('#t-qr'),joinUrl(),170);
