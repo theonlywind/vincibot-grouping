@@ -184,6 +184,17 @@
   .join{display:flex;gap:44px;align-items:center;justify-content:center;flex-wrap:wrap;padding-top:18px}
   .qrbox{background:#fff;padding:16px;border-radius:20px;border:4px solid var(--line)}
   .roomcode{font-size:76px;font-weight:900;letter-spacing:12px;color:var(--purple);line-height:1.1}
+  .rules{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+  .rules span{background:#fff3e0;border:3px solid var(--orange);border-radius:999px;padding:6px 16px;font-size:20px;font-weight:700}
+  .rounds{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+  .round{background:var(--tint);border:4px solid transparent;border-radius:20px;padding:16px 18px;font-size:22px;line-height:1.55;transition:.3s}
+  .round.now{background:#e3f8ec;border-color:var(--green);transform:scale(1.02);box-shadow:0 6px 20px rgba(79,206,126,.35)}
+  .round .rh{display:flex;align-items:center;gap:10px;font-size:26px;color:var(--purple)}
+  .round .rh .ic{font-size:36px}
+  .round .rt{margin-left:auto;font-size:18px;background:#fff;border-radius:999px;padding:2px 12px;color:var(--purple)}
+  .round p{margin:8px 0}
+  .round small{display:block;color:#7d6e80;font-size:18px}
+  .closing{margin-top:14px;text-align:center;font-size:28px;font-weight:800;color:var(--pink);background:#fff0f4;border-radius:18px;padding:12px}
   .scr-ctl{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px;opacity:.85}
   .scr-ctl button{font-size:15px;padding:8px 12px}
   .bigbtn{font-size:30px;padding:16px 34px}
@@ -310,9 +321,19 @@ window.VB_CONFIG={dbUrl:'https://vincibot-grouping-default-rtdb.asia-southeast1.
       <li><b>3–15 分鐘 闖關</b>：大螢幕按「闖關 12 分鐘」計時；同學玩 3 關，完成後結果自動出現。①睇進度，催未完成嘅同學。</li>
       <li><b>15–18 分鐘 老師配對</b>：按「自動配對」→ 微調。同時大螢幕轉去 ②，同學睇全班投票同獎項。</li>
       <li><b>18–23 分鐘 揭曉</b>：大螢幕轉去 ③，逐對揭曉，每對讀出分組原因。</li>
-      <li><b>23–30 分鐘 握手任務</b>：轉去 ④，同學搵到拍檔，完成 3 條破冰題（按「握手 6 分鐘」計時），再諗隊名。</li>
+      <li><b>23–30 分鐘 拍檔暖身</b>：轉去 ④，同學搵到拍檔後按「暖身 6 分鐘」計時，三輪活動會自動標示而家玩邊一輪；最後送對方一句欣賞。</li>
     </ol>
     <p class="muted" style="margin:4px 0">大螢幕快捷鍵：← → 轉步驟、空白鍵揭曉下一對。列印拍檔卡係選用，時間唔夠可以唔印。</p>
+    <details style="margin:6px 0 0"><summary style="font-size:17px">🧭 拍檔暖身帶領小貼士（社工角度）</summary>
+      <ul style="line-height:1.8;margin:6px 0">
+        <li><b>先講 3 個小約定</b>（可以 pass、專心聽、私人嘢唔外傳），令同學有安全感，唔想講都唔會被迫。</li>
+        <li><b>循序漸進</b>：由「共通點」（冇壓力）→「開心事同感受」→「合作約定」，唔好一開始就問私人嘢。</li>
+        <li><b>巡走觀察</b>：邊對冇傾偈？邊位同學孤零零？用「我留意到……」關心，而唔係指出佢哋做得唔好。</li>
+        <li><b>留意配對感受</b>：如果有同學明顯唔想同拍檔，私下問原因，唔好喺大家面前處理。</li>
+        <li><b>收尾 1 分鐘</b>：全班輪流講「我欣賞拍檔嘅一件事」。</li>
+        <li><b>唔好貼標籤</b>：領航員、程式機師只係今日嘅強項，唔係永久身份。</li>
+      </ul>
+    </details>
   </details>
 
   <div class="panel" id="t-room" hidden>
@@ -410,7 +431,7 @@ window.VB_CONFIG={dbUrl:'https://vincibot-grouping-default-rtdb.asia-southeast1.
       <button class="scr-tab" data-go="1">① 大家嘅進度</button>
       <button class="scr-tab" data-go="2">② 有趣回答</button>
       <button class="scr-tab" data-go="3">③ 分組揭曉</button>
-      <button class="scr-tab" data-go="4">④ 握手任務</button>
+      <button class="scr-tab" data-go="4">④ 拍檔暖身</button>
     </div>
     <span id="scr-timer">⏱ --:--</span>
   </div>
@@ -419,7 +440,7 @@ window.VB_CONFIG={dbUrl:'https://vincibot-grouping-default-rtdb.asia-southeast1.
     <button class="ghost" data-step="-1">◀ 上一步</button>
     <button class="ghost" data-step="1">下一步 ▶</button>
     <button class="orange" data-timer="12">⏱ 闖關 12 分鐘</button>
-    <button class="orange" data-timer="6">⏱ 握手 6 分鐘</button>
+    <button class="orange" data-timer="6">⏱ 暖身 6 分鐘</button>
     <button class="ghost" data-timer="0">⏹ 停止計時</button>
     <button class="ghost" id="scr-back">← 返回老師版</button>
   </div>
@@ -1195,10 +1216,17 @@ function teacherInit(){
 
 /* 列印拍檔卡：每對共用一個標誌，各執一半 */
 const PCOL=['#e11d48','#2563eb','#16a34a','#d97706','#7c3aed','#0891b2','#db2777','#4b5563'];
-const HANDSHAKE=[
-  '你最鍾意邊個交通標誌？點解？','如果 VinciBot 識講嘢，佢第一句會講咩？','各自介紹一件你最叻嘅嘢',
-  '交通標誌接龍：你一個、我一個，睇邊個講得多','講一件你喺馬路上見過最有趣嘅事','一齊幫你哋嘅機械人改個隊名',
-  '預測：8 分鐘內邊個任務最難？點解？','一齊創作一個勝利手勢或口號'
+const GROUND=['🙋 想 pass 可以講「pass」，唔使解釋','👂 人哋講嘢嗰陣，我哋專心聽','🔒 聽到嘅私人嘢，唔好轉頭講俾其他人知'];
+const ICEBREAK=[
+  {icon:'🔍',t:'共通點大搜查',sec:90,short:'搵 3 個「你哋都一樣」嘅共通點（睇唔見嗰種）',
+   d:'兩個人輪流問，搵 3 樣「你哋都一樣」嘅嘢。唔可以係睇得見嘅（例如校服、鞋）。',
+   eg:'例：都怕蟑螂 🪳、都鍾意瞓懶覺 😴、都有細佬妹'},
+  {icon:'👂',t:'聽你講 · 我複述',sec:150,short:'輪流講一件開心事，對方複述再估心情',
+   d:'輪流講一件「呢個星期開心或者好笑嘅事」（30 秒）。聽嘅人用自己嘅說話複述一次，再估下對方當時嘅心情 😀😮😢😡。',
+   eg:'句式：「我聽到你話……，你當時好似好……？」'},
+  {icon:'🤝',t:'我哋嘅合作約定',sec:120,short:'各揀一句「緊張時希望隊友點樣」，定 1 條約定同隊名',
+   d:'各自揀一句：「我緊張或者卡住嘅時候，我希望隊友……」① 俾我諗多陣　② 講句鼓勵嘅說話　③ 同我一齊睇　④ 俾我靜一靜。然後一齊定 1 條合作約定同一個隊名，勾手指蓋印！',
+   eg:'例：「意見唔同，我哋會先聽完對方講晒。」'}
 ];
 function printCards(){
   if(!pairs.length){toast('請先配對');return}
@@ -1206,7 +1234,7 @@ function printCards(){
   let h='<div class="cards">', uid=0;
   pairs.forEach((p,i)=>{
     const type=SIGN_TYPES[i%6], col=PCOL[Math.floor(i/6)%PCOL.length];
-    const rnd=mulberry32(i+3), qs=[...HANDSHAKE].sort(()=>rnd()-.5).slice(0,3);
+    const qs=ICEBREAK.map((r,k)=>`${r.icon} 第 ${k+1} 輪：${r.short}`);
     [['a','L'],['b','R']].forEach(([slot,side])=>{
       const s=p[slot]?byId[p[slot]]:null;
       if(slot==='b'&&!s) return;
@@ -1216,7 +1244,7 @@ function printCards(){
         <div class="nick">${signSVG(s.a,34)} ${esc(s.n)}</div>
         <div class="fav">${esc(s.f.join(' ')||'🚗')}</div>
         <div class="hint">${p.b?'🔍 請搵持有「另一半標誌」嘅同學，一齊坐低！':'🔁 你係機動隊員：搵老師指示補位。'}</div>
-        ${p.b?`<b style="font-size:10pt">握手 3 問：</b><ol class="qs">${qs.map(q=>`<li>${esc(q)}</li>`).join('')}</ol>`:''}
+        ${p.b?`<b style="font-size:10pt">暖身 3 輪：</b><ol class="qs">${qs.map(q=>`<li>${esc(q)}</li>`).join('')}</ol>`:''}
       </div>`;
     });
   });
@@ -1340,8 +1368,9 @@ function scr3(c){
 }
 function scr4(c){
   const R=c.roster||[], P=c.pairs||[], byId=Object.fromEntries(R.map(s=>[s.id,s]));
-  const rnd=mulberry32(5), qs=[...HANDSHAKE].sort(()=>rnd()-.5).slice(0,3);
-  let h=`<div class="hs"><b>🤝 握手任務：搵到拍檔，一齊完成</b><ol>${qs.map(q=>`<li>${esc(q)}</li>`).join('')}</ol><div>✅ 完成後兩個人一齊舉手，再諗一個隊名！</div></div>`;
+  let h=`<div class="rules">${GROUND.map(g=>`<span>${g}</span>`).join('')}</div>
+  <div class="rounds">${ICEBREAK.map((r,i)=>`<div class="round" data-r="${i}"><div class="rh"><span class="ic">${r.icon}</span><b>第 ${i+1} 輪 · ${r.t}</b><span class="rt">${r.sec} 秒</span></div><p>${esc(r.d)}</p><small>${esc(r.eg)}</small></div>`).join('')}</div>
+  <div class="closing">🌟 收尾：送對方一句真心嘅欣賞 ——「我覺得你好……」</div>`;
   if(P.length) h+='<h3 style="margin-top:16px">📋 拍檔名單</h3><div class="mini-pairs">'+P.map((p,i)=>{
     const A=byId[p.a],B=p.b?byId[p.b]:null;
     return `<div class="mini"><b>#${i+1}</b> ${signSVG(A.a,22)} ${esc(A.n)}${B?` 🤝 ${signSVG(B.a,22)} ${esc(B.n)}`:' 🔁 機動'}</div>`;
@@ -1359,13 +1388,20 @@ function renderScreen(force){
   renderTimer();
 }
 const curStep=c=>(typeof c.step==='number')?c.step:(CLOUD?0:1);
+function markRound(elapsed){   // 暖身計時（6 分鐘）期間，自動標示而家係第幾輪
+  const cards=$$('#scr-body .round'); if(!cards.length) return;
+  let cur=-1;
+  if(elapsed>=0){let acc=0;ICEBREAK.forEach((r,i)=>{if(elapsed>=acc&&elapsed<acc+r.sec)cur=i;acc+=r.sec})}
+  cards.forEach((c,i)=>c.classList.toggle('now',i===cur));
+}
 function renderTimer(){
   const t=readClass().timer, el=$('#scr-timer');
-  if(!t||!t.endAt){el.textContent='⏱ --:--';el.className='';return}
+  if(!t||!t.endAt){el.textContent='⏱ --:--';el.className='';markRound(-1);return}
   const left=Math.ceil((t.endAt-Date.now())/1000);
-  if(left<=0){el.textContent='⏰ 時間到！';el.className='over';return}
+  if(left<=0){el.textContent='⏰ 時間到！';el.className='over';markRound(-1);return}
   el.textContent=`⏱ ${String(Math.floor(left/60)).padStart(2,'0')}:${String(left%60).padStart(2,'0')}`;
   el.className=left<=60?'warn':'';
+  markRound(t.mins===6?6*60-left:-1);
 }
 function screenInit(){
   $('.scr-tab[data-go="0"]').hidden=!CLOUD;
